@@ -128,3 +128,18 @@ export function scoreSummary(round, holeResults) {
 }
 
 export const fmtToPar = (n) => (n === 0 ? 'E' : n > 0 ? `+${n}` : `${n}`);
+
+// Fairway hit (par 4/5 only) and green in regulation for a completed hole, derived from its shots.
+// Returns { fw: true|false|null, gir: true|false|null } — null means "doesn't apply / not known".
+export function holeStats(shots, holeNum, hr) {
+  if (!hr?.holed) return { fw: null, gir: null };
+  const list = shotsForHole(shots, holeNum);
+  const tee = list.find((s) => s.kind === 'stroke');
+  let fw = null;
+  if (hr.par >= 4 && tee?.end) fw = tee.end.holed || tee.end.lie === 'fairway';
+  // GIR: on the green (or holed) with par − 2 or fewer strokes used
+  const firstOnGreen = list.findIndex((s) => s.kind === 'stroke' && s.start.lie === 'green');
+  const before = firstOnGreen === -1 ? hr.strokes : firstOnGreen;
+  const gir = list.length ? before <= hr.par - 2 : null;
+  return { fw, gir };
+}

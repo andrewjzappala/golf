@@ -128,6 +128,10 @@ h2 { font: 500 11px/1 var(--sans); text-transform: uppercase; letter-spacing: .1
 .page-yds .y b { font: 400 40px/1 var(--serif); font-variant-numeric: lining-nums tabular-nums; }
 .page-yds .y.main b { font-size: 84px; line-height: .9; letter-spacing: -.02em; }
 .page-foot { text-align: right; }
+.card-btn { display: block; width: 100%; text-align: right; background: none; border: 0; border-bottom: 1px solid var(--hair-strong); padding: 4px 0 8px; }
+.card-btn:active { opacity: .6; }
+.card-btn .score-line { display: block; }
+.cb-lbl { display: block; margin-top: 6px; font: 500 10px/1 var(--sans); text-transform: uppercase; letter-spacing: .18em; }
 .score-line { font: 400 26px/1 var(--serif); }
 .score-line span { font: italic 400 16px/1 var(--serif); color: var(--muted); }
 .status { font-size: 11px; letter-spacing: .06em; color: var(--muted); margin-top: 6px; }
@@ -197,9 +201,11 @@ h2 { font: 500 11px/1 var(--sans); text-transform: uppercase; letter-spacing: .1
 .sc-head { padding: 24px 0 4px; }
 .sc-head .display { font-size: 34px; }
 .sc-head .muted { font-size: 13px; letter-spacing: .04em; margin-top: 6px; }
-.totals { display: grid; grid-template-columns: repeat(4, 1fr); text-align: center; margin: 20px 0; border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair); }
+.totals { display: grid; grid-template-columns: repeat(3, 1fr); text-align: center; margin: 20px 0; border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair); }
 .totals div { padding: 14px 0; }
-.totals div + div { border-left: 1px solid var(--hair); }
+.totals div:not(:nth-child(3n+1)) { border-left: 1px solid var(--hair); }
+.totals div:nth-child(n+4) { border-top: 1px solid var(--hair); }
+.totals b small { font-size: 18px; color: var(--muted); }
 .totals b { display: block; font: 400 34px/1 var(--serif); font-weight: 400; }
 .totals span { font: 500 10px/1 var(--sans); text-transform: uppercase; letter-spacing: .16em; color: var(--muted); }
 .card-table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-variant-numeric: lining-nums tabular-nums; table-layout: fixed; }
@@ -207,6 +213,14 @@ h2 { font: 500 11px/1 var(--sans); text-transform: uppercase; letter-spacing: .1
 .card-table th { font: 500 10px/1 var(--sans); letter-spacing: .1em; color: var(--muted); border-bottom-color: var(--hair-strong); }
 .card-table td:first-child, .card-table th:first-child { text-align: left; font: 500 10px/1 var(--sans); text-transform: uppercase; letter-spacing: .14em; color: var(--muted); width: 50px; }
 .card-table .tot { font-weight: 400; background: var(--paper-2); }
+.card-table .small-tot { font: 500 11px/1 var(--sans); letter-spacing: .02em; }
+.card-table .cur { background: color-mix(in srgb, var(--yellow) 22%, transparent); }
+.card-table th.cur { box-shadow: inset 0 -2px 0 var(--yellow); color: var(--ink); }
+.card-table [data-action="jump-hole"] { cursor: pointer; }
+.mark-row td { padding: 5px 0; }
+.hit { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--forest); }
+.miss { color: var(--muted); font-family: var(--sans); font-size: 12px; }
+.center { text-align: center; }
 /* Classic scorecard marks: circle = birdie or better, square = bogey, double square = double+ */
 .mark { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; }
 .mark.birdie { border: 1px solid var(--ink); border-radius: 50%; background: var(--yellow); color: var(--on-yellow); }

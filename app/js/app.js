@@ -7,7 +7,7 @@ import { recordHoleWeather, backfillPending } from './weather.js';
 import { renderHoleMap, mapEventToLonLat } from './holemap.js';
 import * as R from './rounds.js';
 
-const APP_VERSION = '0.3.0';
+const APP_VERSION = '0.4.0';
 
 const S = {
   view: 'home',
@@ -177,7 +177,9 @@ function viewHole() {
       <div class="y main"><span class="lbl" data-live="main-lbl">Center</span><b data-live="main">–</b></div>
       <div class="y"><span class="lbl">Front</span><b data-live="front">–</b></div>
       <div class="page-foot">
-        <div class="score-line">${sum.holesDone ? `${R.fmtToPar(sum.toPar)} <span>through ${sum.holesDone}</span>` : `<span>${esc(courseMeta(S.round.courseId).sub)}</span>`}</div>
+        <button class="card-btn" data-action="open-summary" data-id="${S.round.id}">
+          <span class="score-line">${sum.holesDone ? `${R.fmtToPar(sum.toPar)} <span>thru ${sum.holesDone}</span>` : `<span>${esc(courseMeta(S.round.courseId).sub)}</span>`}</span>
+          <span class="cb-lbl">Scorecard &nbsp;→</span></button>
         <div class="status"><span data-live="gps">GPS…</span> <span data-live="lie"></span></div>
       </div>
     </div>
@@ -310,31 +312,50 @@ function toast(msg) {
 }
 
 function viewSummary() {
-  const round = S.rounds.find((r) => r.id === S.summaryRoundId) || S.round;
+  const round = (S.round?.id === S.summaryRoundId && S.round) || S.rounds.find((r) => r.id === S.summaryRoundId);
   const hrs = S.summaryHoleResults || {};
   const course = S.summaryCourse;
   const sum = R.scoreSummary(round, hrs);
   const active = round.status === 'active';
-  const half = (holes) => holes.map((h) => ({ h, par: getHole(course, h).par, hr: hrs[h] }));
+  const shots = S.summaryShots || [];
+  const half = (holes) => holes.map((h) => ({ h, par: getHole(course, h).par, hr: hrs[h], ...R.holeStats(shots, h, hrs[h]) }));
   const nines = round.holes.length > 9 ? [round.holes.slice(0, 9), round.holes.slice(9)] : [round.holes];
+  const all = half(round.holes);
+  const fwHoles = all.filter((x) => x.fw !== null), girHoles = all.filter((x) => x.gir !== null);
+  const ratio = (arr, k) => (arr.length ? `${arr.filter((x) => x[k]).length}<small>/${arr.length}</small>` : '–');
+  const hitMark = (v) => (v === null ? '' : v ? '<span class="hit"></span>' : '<span class="miss">–</span>');
+  const cur = active ? round.currentHole : null;
+  const colCls = (h) => (h === cur ? ' class="cur"' : '');
   return `
-  <header class="bar"><button class="link" data-action="${active ? 'back-to-hole' : 'go'}" data-view="home">‹ ${active ? 'Hole' : 'Back'}</button><span class="wordmark">Scorecard</span><span></span></header>
+  <header class="bar"><button class="link" data-action="${active ? 'back-to-hole' : 'go'}" data-view="home">‹ ${active ? `No. ${cur}` : 'Back'}</button><span class="wordmark">Scorecard</span><span></span></header>
   <main class="pad">
     <div class="sc-head"><div class="eyebrow">${esc(courseMeta(round.courseId).name)}</div>
       <h1 class="display">${esc(courseMeta(round.courseId).sub)}</h1>
       <div class="muted">${fmtDate(round.date, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} · ${esc(round.teeLabel)} tees</div></div>
-    <div class="totals"><div><b>${sum.strokes || '–'}</b><span>Score</span></div><div><b>${sum.holesDone ? R.fmtToPar(sum.toPar) : '–'}</b><span>To par</span></div>
-      <div><b>${sum.putts}</b><span>Putts</span></div><div><b>${sum.penalties}</b><span>Penalties</span></div></div>
+    <div class="totals">
+      <div><b>${sum.strokes || '–'}</b><span>Score</span></div>
+      <div><b>${sum.holesDone ? R.fmtToPar(sum.toPar) : '–'}</b><span>${sum.holesDone && sum.holesDone < round.holes.length ? `Thru ${sum.holesDone}` : 'To par'}</span></div>
+      <div><b>${sum.holesDone ? sum.putts : '–'}</b><span>Putts</span></div>
+      <div><b>${ratio(fwHoles, 'fw')}</b><span>Fairways</span></div>
+      <div><b>${ratio(girHoles, 'gir')}</b><span>Greens</span></div>
+      <div><b>${sum.holesDone ? sum.penalties : '–'}</b><span>Penalties</span></div>
+    </div>
     ${nines.map((n, ni) => {
       const xs = half(n);
       const tot = (f) => xs.reduce((a, x) => a + (f(x) || 0), 0);
+      const cnt = (k) => { const a = xs.filter((x) => x[k] !== null); return a.length ? `${a.filter((x) => x[k]).length}/${a.length}` : ''; };
       const label = nines.length === 1 ? 'Tot' : ni === 0 ? 'Out' : 'In';
-      return `<table class="card-table"><tr><th>Hole</th>${n.map((h) => `<th>${h}</th>`).join('')}<th class="tot">${label}</th></tr>
-      <tr><td>Par</td>${xs.map((x) => `<td>${x.par}</td>`).join('')}<td class="tot">${tot((x) => x.par)}</td></tr>
-      <tr><td>Score</td>${xs.map((x) => `<td>${x.hr?.holed ? `<span class="mark ${scoreCls(x.hr.strokes - x.par)}">${x.hr.strokes}</span>` : ''}</td>`).join('')}<td class="tot">${tot((x) => x.hr?.holed && x.hr.strokes) || ''}</td></tr>
-      <tr><td>Putts</td>${xs.map((x) => `<td>${x.hr?.holed ? x.hr.putts : ''}</td>`).join('')}<td class="tot">${tot((x) => x.hr?.holed && x.hr.putts) || ''}</td></tr></table>`;
+      const jump = (h) => (active ? ` data-action="jump-hole" data-h="${h}"` : '');
+      return `<table class="card-table"><tr><th>Hole</th>${n.map((h) => `<th${colCls(h)}${jump(h)}>${h}</th>`).join('')}<th class="tot">${label}</th></tr>
+      <tr><td>Par</td>${xs.map((x) => `<td${colCls(x.h)}${jump(x.h)}>${x.par}</td>`).join('')}<td class="tot">${tot((x) => x.par)}</td></tr>
+      <tr class="score-row"><td>Score</td>${xs.map((x) => `<td${colCls(x.h)}${jump(x.h)}>${x.hr?.holed ? `<span class="mark ${scoreCls(x.hr.strokes - x.par)}">${x.hr.strokes}</span>` : ''}</td>`).join('')}<td class="tot">${tot((x) => x.hr?.holed && x.hr.strokes) || ''}</td></tr>
+      <tr><td>Putts</td>${xs.map((x) => `<td${colCls(x.h)}${jump(x.h)}>${x.hr?.holed ? x.hr.putts : ''}</td>`).join('')}<td class="tot">${tot((x) => x.hr?.holed && x.hr.putts) || ''}</td></tr>
+      <tr class="mark-row"><td>Fwy</td>${xs.map((x) => `<td${colCls(x.h)}${jump(x.h)}>${hitMark(x.fw)}</td>`).join('')}<td class="tot small-tot">${cnt('fw')}</td></tr>
+      <tr class="mark-row"><td>GIR</td>${xs.map((x) => `<td${colCls(x.h)}${jump(x.h)}>${hitMark(x.gir)}</td>`).join('')}<td class="tot small-tot">${cnt('gir')}</td></tr></table>`;
     }).join('')}
-    ${active ? `<button class="btn primary xl" data-action="finish-round">Finish round</button>` : ''}
+    ${active ? `<p class="muted small center">Tap a hole to go to it.</p>
+      <button class="btn primary xl" data-action="back-to-hole">Back to No. ${cur}</button>
+      <button class="btn ghost" data-action="finish-round">Finish round</button>` : ''}
     <button class="btn ghost" data-action="export-round" data-id="${round.id}">Export this round (JSON)</button>
     <button class="btn danger" data-action="delete-round" data-id="${round.id}">Delete round</button>
   </main>`;
@@ -430,9 +451,10 @@ async function finishRound() {
 }
 
 async function openSummary(id) {
-  const { round, holeResults } = await R.loadRound(id);
+  const { round, shots, holeResults } = await R.loadRound(id);
   S.summaryRoundId = id;
   S.summaryHoleResults = holeResults;
+  S.summaryShots = shots;
   S.summaryCourse = await loadCourse(round.courseId);
   if (!S.rounds.find((r) => r.id === id)) S.rounds.push(round);
   S.view = 'summary';
@@ -470,7 +492,8 @@ const actions = {
     if (idx >= S.round.holes.length) return openSummary(S.round.id);
     if (idx >= 0) goToHole(S.round.holes[idx]);
   },
-  'back-to-hole': () => { S.view = 'hole'; render(); },
+  'back-to-hole': () => { S.view = 'hole'; render(); window.scrollTo(0, 0); },
+  'jump-hole': (el) => { S.view = 'hole'; goToHole(+el.dataset.h); },
   'toggle-map': async () => { S.showMap = !S.showMap; await db.setMeta('showMap', S.showMap); render(); },
   'map-tap': (el, e) => {
     if (!gps.state.simulate) return;
