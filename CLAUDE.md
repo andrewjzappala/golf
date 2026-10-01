@@ -44,7 +44,7 @@ app/                               ← the logging web app (step 1), deploy this
   courses/       COPY of data/courses/*.json — re-copy after re-running the importer, and bump VERSION in sw.js
 ```
 
-No build step (Node isn't installed): plain ES modules. Local preview: the preview server can't read ~/Documents (macOS privacy), so rsync `app/` into the scratchpad and serve it from there (`.claude/launch.json`). "Simulate GPS" in Settings lets you tap the hole map to place yourself.
+No build step (Node isn't installed): plain ES modules. Local preview: the preview server can't read ~/Documents (macOS privacy), so rsync `app/` into the scratchpad and serve it from there (`.claude/launch.json`). "Simulate GPS" in Settings lets you tap the hole map to place yourself. The preview browser caches JS modules aggressively. After syncing, add a cache-busting query to the script tag in the scratch copy of index.html (e.g. `js/app.js?preview=N`) or the old code keeps running.
 
 ## Status (2026-09-30)
 

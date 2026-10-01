@@ -7,7 +7,7 @@ import { recordHoleWeather, backfillPending } from './weather.js';
 import { renderHoleMap, mapEventToLonLat } from './holemap.js';
 import * as R from './rounds.js';
 
-const APP_VERSION = '0.7.0';
+const APP_VERSION = '0.7.1';
 
 const S = {
   view: 'home',
@@ -86,8 +86,18 @@ function holeCtx() {
   const puttMode = !holed && !S.showClubsOnGreen && (last?.shotType === 'putt' || liveLie.lie === 'green' || S.showPuttsOffGreen);
   // Tee shots use the card-line yardage (follows doglegs); after that, straight-line to the pin.
   const target = strokes.length === 0 ? teeBox(hole, S.round.teeIndex).yards_to_center : dist?.pin;
-  const suggestion = suggestClub(target, S.bag, S.profiles);
+  // On the tee, Andrew's own plan from the book wins over a pure distance match (e.g. hybrid on No. 5)
+  const planned = strokes.length === 0 ? bookTeeClub(holeBook(S.course, S.hole).caddy) : null;
+  const suggestion = planned || suggestClub(target, S.bag, S.profiles);
   return { hole, hr, pin, shots, strokes, last, live, liveLie, dist, holed, puttMode, suggestion };
+}
+
+function bookTeeClub(caddy) {
+  if (!caddy) return null;
+  const inBag = (id) => (S.bag.some((b) => b.id === id && b.active) ? id : null);
+  if (caddy.tee_club) return inBag(caddy.tee_club);
+  const opt = caddy.options?.find((o) => o.name === caddy.preferred);
+  return inBag(opt?.club) || inBag(caddy.preferred);
 }
 
 // ---------- rendering ----------

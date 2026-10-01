@@ -1,6 +1,6 @@
 // Offline support: the whole app and both course files are cached on first load.
 // Bump VERSION whenever any app file changes so phones pick up the new version.
-const VERSION = 'dialed-v0.7.0';
+const VERSION = 'dialed-v0.7.1';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
   'js/app.js', 'js/db.js', 'js/gps.js', 'js/geo.js', 'js/course.js', 'js/clubs.js',
@@ -11,7 +11,8 @@ const FILES = [
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));
+  // cache: 'reload' skips the browser's HTTP cache, so an update never stores a stale file
+  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(FILES.map((f) => new Request(f, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {
