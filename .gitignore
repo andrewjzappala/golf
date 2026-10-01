@@ -2,3 +2,6 @@
 files.zip
 .claude/
 __pycache__/
+
+# Andrew's round exports: personal data, never published (the repo is public)
+rounds/

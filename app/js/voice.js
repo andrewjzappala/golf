@@ -34,7 +34,9 @@ export function parseNote(text, bag) {
   else if (/\b(long|flew( it)?|over( the green)?)\b/.test(tm)) out.miss = 'long';
   else if (/\b(pure(d)?|flush(ed)?|perfect|stiff|on target|pin high|great|good)\b/.test(tm)) out.miss = 'on_target';
 
-  if (/\bpunch(ed)?\b/.test(t)) out.shotType = 'punch';
+  // "greens are punched" means aerated greens, not a punch shot
+  const tt = t.replace(/\bgreens?\s+(are|were|is|was|just)?\s*(punched|aerated)\b|\bpunched greens?\b/g, ' ');
+  if (/\bpunch(ed)?\b/.test(tt)) out.shotType = 'punch';
   else if (/\bchip(ped)?\b/.test(t)) out.shotType = 'chip';
   else if (/\bpitch(ed)?\b/.test(t)) out.shotType = 'pitch';
 

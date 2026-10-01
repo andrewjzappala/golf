@@ -3,11 +3,12 @@ import * as gps from './gps.js';
 import { COURSES, TEE_SETS, loadCourse, getHole, teeBox, detectLie, distancesFrom, holeBook } from './course.js';
 import { DEFAULT_BAG, buildProfiles, suggestClub, inferShotType, clubDistance } from './clubs.js';
 import { parseNote, speechAvailable, listen } from './voice.js';
-import { recordHoleWeather, backfillPending } from './weather.js';
+import { recordHoleWeather, backfillPending, currentConditions } from './weather.js';
 import { renderHoleMap, mapEventToLonLat } from './holemap.js';
+import { bearing } from './geo.js';
 import * as R from './rounds.js';
 
-const APP_VERSION = '0.7.2';
+const APP_VERSION = '0.8.0';
 
 const S = {
   view: 'home',
@@ -105,7 +106,7 @@ function bookTeeClub(caddy) {
 function render() {
   const views = { home: viewHome, setup: viewSetup, hole: viewHole, summary: viewSummary, settings: viewSettings };
   $app.innerHTML = views[S.view]() + (S.confirm ? confirmSheet() : '');
-  if (S.view === 'hole') renderLive();
+  if (S.view === 'hole') { renderLive(); refreshWind(); }
 }
 
 const courseMeta = (id) => COURSES.find((c) => c.id === id) || {};
@@ -218,6 +219,7 @@ function viewHole() {
         <button class="card-btn" data-action="open-summary" data-id="${S.round.id}">
           <span class="score-line">${sum.holesDone ? `${R.fmtToPar(sum.toPar)} <span>thru ${sum.holesDone}</span>` : `<span>${esc(courseMeta(S.round.courseId).sub)}</span>`}</span>
           <span class="cb-lbl">Scorecard &nbsp;→</span></button>
+        <div class="wind" data-live="wind"></div>
         <div class="status"><span data-live="gps">GPS…</span> <span data-live="lie"></span></div>
       </div>
     </div>
@@ -231,8 +233,9 @@ function viewHole() {
       <button class="btn primary xl" data-action="nav-hole" data-d="1">${idx === S.round.holes.length - 1 ? 'To the scorecard' : `On to No. ${S.round.holes[idx + 1]}`}</button>
       <div class="text-btns"><button class="text-btn" data-action="unhole">Undo holed</button></div>`
     : puttMode ? `
+      ${puttTrail(strokes)}
       <div class="lbl">${strokes.some((s) => s.shotType === 'putt') ? 'Next putt · feet' : 'First putt · feet'}</div>
-      <div class="grid buckets">${R.PUTT_BUCKETS.map((b) => `<button class="btn" data-action="putt" data-ft="${b}">${b === 40 ? '40+' : b}</button>`).join('')}
+      <div class="grid buckets">${R.PUTT_BUCKETS.map((b) => `<button class="btn ${flashing(`putt:${b}`) ? 'flash' : ''}" data-action="putt" data-ft="${b}">${b === 40 ? '40+' : b}</button>`).join('')}
         <button class="btn primary" data-action="holed">Holed</button></div>
       <div class="row-btns">
         ${!c.hr?.pin ? `<button class="btn ghost" data-action="set-pin">Pin is here</button>` : ''}
@@ -240,7 +243,7 @@ function viewHole() {
       </div>`
     : `
       <div class="grid clubs">${S.bag.filter((b) => b.active && b.type !== 'putter').map((b) => `
-        <button class="btn club ${c.suggestion === b.id ? 'suggest' : ''}" data-action="club" data-club="${b.id}" data-club-btn="${b.id}">
+        <button class="btn club ${c.suggestion === b.id ? 'suggest' : ''} ${flashing(`club:${b.id}`) ? 'flash' : ''}" data-action="club" data-club="${b.id}" data-club-btn="${b.id}">
           <b>${b.id}</b><span>${clubDistance(b).yds || ''}</span></button>`).join('')}
       </div>
       <div class="row-btns">
@@ -279,6 +282,40 @@ function bookSection(n) {
     <ul class="zone-list">${zones.map((z) => `<li><span class="k k-${z.kind}">${z.kind}</span><span>${esc(z.label)}</span></li>`).join('')}</ul>
     ${(S.course.bookNotes || []).map((t) => `<p class="muted small course-note">${esc(t)}</p>`).join('')}
   </section>`;
+}
+
+// Feedback for logging taps: the tapped button flashes, and putts so far are listed
+const flashing = (key) => S.flash?.key === key && Date.now() < S.flash.until;
+function puttTrail(strokes) {
+  const putts = strokes.filter((s) => s.shotType === 'putt');
+  if (!putts.length) return '';
+  const ft = (s) => `${s.start.distFt ?? s.start.bucketFt ?? '?'}${s.start.bucketFt === 40 ? '+' : ''} ft`;
+  return `<div class="putt-trail"><span class="lbl">Putts</span>${putts.map((s, i) => `<b class="${i === putts.length - 1 ? 'last' : ''}">${ft(s)}</b>`).join('<i>→</i>')}</div>`;
+}
+
+// Wind relative to the line you're playing (from your ball, else the tee, to the pin)
+function windHtml(c) {
+  const w = S.wind;
+  if (!w || w.windMph == null) return navigator.onLine ? '' : '<span class="muted">Wind: offline</span>';
+  const from = c.live || teeBox(c.hole, S.round.teeIndex).point;
+  const line = (bearing(from, c.pin || c.hole.green.center) * 180) / Math.PI;
+  const rel = ((w.windDirDeg + 180 - line) % 360 + 360) % 360; // where it blows, relative to your line
+  const r = (rel * Math.PI) / 180;
+  const along = Math.cos(r) * w.windMph, cross = Math.sin(r) * w.windMph;
+  const words = w.windMph < 3 ? ['calm'] : [
+    Math.abs(along) >= 3 ? (along > 0 ? 'helping' : 'into') : null,
+    Math.abs(cross) >= 3 ? (cross > 0 ? 'L→R' : 'R→L') : null,
+  ].filter(Boolean);
+  const ageMin = Math.round((Date.now() - new Date(w.at).getTime()) / 60000);
+  return `<svg class="wind-arrow" viewBox="-10 -10 20 20" style="transform:rotate(${rel.toFixed(0)}deg)" aria-hidden="true"><path d="M0 8V-7M-4.5 -2.5L0 -7L4.5 -2.5"/></svg>
+    <b>${Math.round(w.windMph)}</b><span class="unit">mph</span>${w.gustMph > w.windMph + 4 ? `<span class="muted"> g${Math.round(w.gustMph)}</span>` : ''}
+    <span class="w-words">${words.join(' · ')}</span>${ageMin > 15 ? `<span class="muted"> · ${ageMin}m ago</span>` : ''}`;
+}
+
+async function refreshWind() {
+  if (!S.course || !S.round) return;
+  const w = await currentConditions(getHole(S.course, S.hole).green.center);
+  if (w) { S.wind = w; renderLive(); }
 }
 
 function shotRow(s, i) {
@@ -366,6 +403,7 @@ function renderLive() {
     : st.error ? `<span class="warn">${esc(st.error)}</span>`
     : st.last ? `GPS ±${Math.round(st.last.acc)} m` : 'Finding GPS…');
   set('lie', c.live && c.strokes.length ? `· ${LIE_LABEL[c.liveLie.lie]}` : '');
+  set('wind', windHtml(c));
   const map = $app.querySelector('[data-live="map"]');
   if (map) {
     const aspect = map.clientWidth && map.clientHeight ? map.clientWidth / map.clientHeight : 0.55;
@@ -581,8 +619,8 @@ const actions = {
     const p = mapEventToLonLat(svg, e);
     if (p) gps.setSimPoint(p);
   },
-  club: (el) => addShot({ club: el.dataset.club }),
-  putt: (el) => addShot({ club: 'P', shotType: 'putt', bucketFt: +el.dataset.ft }),
+  club: (el) => { S.flash = { key: `club:${el.dataset.club}`, until: Date.now() + 900 }; addShot({ club: el.dataset.club }); },
+  putt: (el) => { S.flash = { key: `putt:${el.dataset.ft}`, until: Date.now() + 900 }; addShot({ club: 'P', shotType: 'putt', bucketFt: +el.dataset.ft }); },
   'show-clubs': () => { S.showClubsOnGreen = true; S.showPuttsOffGreen = false; render(); },
   'show-putts': () => { S.showPuttsOffGreen = true; S.showClubsOnGreen = false; render(); },
   holed: async () => {
@@ -734,7 +772,7 @@ async function saveNote(apply = true) {
     const p = parseNote(s.note, S.bag);
     if (p.club) s.club = p.club;
     if (p.miss) s.miss = p.miss;
-    if (p.shotType) s.shotType = p.shotType;
+    if (p.shotType && s.shotType !== 'putt' && clubById(s.club)?.type !== 'putter') s.shotType = p.shotType; // a putt stays a putt
   }
   await db.put('shots', s);
 }
@@ -742,9 +780,18 @@ async function saveNote(apply = true) {
 let noteTimer;
 document.addEventListener('visibilitychange', () => { if (document.hidden) saveNote(true); });
 
+// A repeat tap on the SAME logging button within 0.9 s is almost always an accidental double tap
+const LOGGING = new Set(['club', 'putt', 'holed', 'penalty']);
+let lastLogTap = { key: '', t: 0 };
+
 $app.addEventListener('click', (e) => {
   const el = e.target.closest('[data-action]');
   if (!el || el.disabled) return;
+  if (LOGGING.has(el.dataset.action)) {
+    const key = `${el.dataset.action}:${el.dataset.club || el.dataset.ft || ''}`;
+    if (key === lastLogTap.key && Date.now() - lastLogTap.t < 900) return;
+    lastLogTap = { key, t: Date.now() };
+  }
   if (el.tagName === 'INPUT' && el.type === 'file') return;
   const fn = actions[el.dataset.action];
   if (fn) fn(el, e);

@@ -301,3 +301,19 @@ p.small { line-height: 1.5; }
 .btn.speak.listening { animation: listening 1.1s ease-in-out infinite; }
 @keyframes listening { 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--yellow) 35%, transparent); } }
 #parsed { margin-top: 8px; }
+
+/* Logging feedback */
+.btn.flash { animation: flash .9s ease-out; }
+@keyframes flash { 0% { background: var(--yellow); color: var(--on-yellow); border-color: var(--yellow); } 100% { background: transparent; } }
+.putt-trail { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin: 8px 0 2px; font: 400 20px/1.2 var(--serif); }
+.putt-trail .lbl { margin: 0 4px 0 0; }
+.putt-trail i { font-style: normal; color: var(--muted); font-size: 14px; }
+.putt-trail b { font-weight: 400; }
+.putt-trail b.last { background: linear-gradient(transparent 55%, var(--yellow) 55%, var(--yellow) 92%, transparent 92%); padding: 0 3px; }
+
+/* Wind in the yardage margin */
+.wind { display: flex; justify-content: flex-end; align-items: baseline; gap: 4px; flex-wrap: wrap; margin-top: 8px; font-size: 12px; letter-spacing: .04em; min-height: 18px; }
+.wind b { font: 400 22px/1 var(--serif); }
+.wind .unit { font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); }
+.wind .w-words { flex-basis: 100%; text-align: right; font: italic 400 15px/1.2 var(--serif); color: var(--ink); }
+.wind-arrow { width: 16px; height: 16px; align-self: center; fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }

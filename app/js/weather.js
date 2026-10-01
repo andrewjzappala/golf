@@ -37,6 +37,23 @@ async function fillCurrent(snap) {
   } catch {}
 }
 
+// Live conditions for the hole screen. Cached for 10 minutes; offline it returns the last known
+// reading (with its time) so the screen never goes blank mid-round.
+let live = null; // { t, data }
+export async function currentConditions(pt) {
+  if (live && Date.now() - live.t < 10 * 60e3) return live.data;
+  if (!navigator.onLine || !pt) return live?.data || null;
+  try {
+    const res = await fetch(`${BASE}?latitude=${pt[1]}&longitude=${pt[0]}&current=${FIELDS}${UNITS}`);
+    if (!res.ok) return live?.data || null;
+    const j = await res.json();
+    live = { t: Date.now(), data: { ...toSnapshot(j.current), at: new Date().toISOString() } };
+    return live.data;
+  } catch {
+    return live?.data || null;
+  }
+}
+
 // Fill any pending snapshots using hourly data around the recorded time.
 export async function backfillPending() {
   if (!navigator.onLine) return;
