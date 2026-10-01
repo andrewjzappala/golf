@@ -7,7 +7,7 @@ import { recordHoleWeather, backfillPending } from './weather.js';
 import { renderHoleMap, mapEventToLonLat } from './holemap.js';
 import * as R from './rounds.js';
 
-const APP_VERSION = '0.6.0';
+const APP_VERSION = '0.6.1';
 
 const S = {
   view: 'home',
@@ -721,6 +721,10 @@ $app.addEventListener('click', (e) => {
   const fn = actions[el.dataset.action];
   if (fn) fn(el, e);
 });
+
+// Redraw the hole when the screen size changes (rotation, Safari toolbars)
+let resizeTimer;
+window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(renderLive, 150); });
 
 $app.addEventListener('input', (e) => {
   if (e.target.id === 'note') {

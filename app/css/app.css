@@ -127,9 +127,10 @@ h2 { font: 500 11px/1 var(--sans); text-transform: uppercase; letter-spacing: .1
 .seg button.on { background: var(--forest); color: var(--cream); }
 
 /* Hole screen: a yardage-book page — drawing on the left, yardages in the margin */
-.page { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 12px 20px 4px; height: min(40vh, 340px); min-height: 260px; }
-.page-map { position: relative; border: 1px solid var(--hair-strong); border-radius: var(--r); overflow: hidden; background: var(--m-rough); }
-.page-yds { display: flex; flex-direction: column; justify-content: space-between; text-align: right; }
+/* The page is as tall as its yardage column; the drawing stretches to match (never sets the height itself). */
+.page { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 12px 20px 4px; align-items: stretch; }
+.page-map { position: relative; min-height: 220px; border: 1px solid var(--hair-strong); border-radius: var(--r); overflow: hidden; background: var(--m-rough); }
+.page-yds { display: flex; flex-direction: column; gap: 10px; text-align: right; min-width: 0; }
 .page-yds .y { border-bottom: 1px solid var(--hair); padding-bottom: 6px; }
 .page-yds .y .lbl { display: block; margin: 0 0 2px; }
 .page-yds .y b { font: 400 40px/1 var(--serif); font-variant-numeric: lining-nums tabular-nums; }
@@ -143,7 +144,7 @@ h2 { font: 500 11px/1 var(--sans); text-transform: uppercase; letter-spacing: .1
 .score-line span { font: italic 400 16px/1 var(--serif); color: var(--muted); }
 .status { font-size: 11px; letter-spacing: .06em; color: var(--muted); margin-top: 6px; }
 .sim { color: var(--clay); }
-.holemap { width: 100%; height: 100%; display: block; touch-action: manipulation; }
+.holemap { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: manipulation; }
 .m-fairway { fill: var(--m-fairway); stroke: var(--ink); stroke-opacity: .55; }
 .m-green { fill: var(--m-green); stroke: var(--ink); stroke-opacity: .7; }
 .m-sand { fill: url(#sand-dots) var(--m-sand); stroke: var(--ink); stroke-opacity: .6; }
@@ -159,6 +160,21 @@ h2 { font: 500 11px/1 var(--sans); text-transform: uppercase; letter-spacing: .1
 .m-live { fill: var(--yellow); stroke: var(--ink); }
 
 .notes { padding: 0 20px 28px; }
+
+/* Short screens (iPhone SE / mini, or Safari with toolbars showing): tighten the page so clubs stay in view */
+@media (max-height: 740px) {
+  .hole-bar { min-height: 60px; }
+  .hole-title .h-num { font-size: 28px; }
+  .page { padding-top: 8px; gap: 12px; }
+  .page-yds { gap: 6px; }
+  .page-yds .y { padding-bottom: 4px; }
+  .page-yds .y b { font-size: 30px; }
+  .page-yds .y.main b { font-size: 60px; }
+  .score-line { font-size: 22px; }
+  .status { margin-top: 4px; }
+  .btn.club { min-height: 52px; }
+  .btn.club b { font-size: 22px; }
+}
 .notes h2 { margin-top: 18px; }
 .shots { list-style: none; margin: 0; padding: 0; }
 .shot, .shots .empty { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; padding: 11px 2px; border-bottom: 1px solid var(--hair); font-size: 15px; }
