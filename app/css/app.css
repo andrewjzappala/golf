@@ -119,7 +119,13 @@ h2 { font: 500 11px/1 var(--sans); text-transform: uppercase; letter-spacing: .1
 /* Setup */
 .course-card { display: block; width: 100%; text-align: left; padding: 18px 18px; margin: 10px 0; border: 1px solid var(--hair); border-radius: var(--r); background: transparent; }
 .course-card.on { border-color: var(--forest); box-shadow: inset 0 0 0 1px var(--forest); }
+.course-card { display: flex; align-items: center; gap: 16px; }
+.course-card .cc-text { display: block; }
+.course-card .cc-text > span { display: block; }
 .course-card .cc-name { font: 400 26px/1.1 var(--serif); }
+/* Course crest: a one-colour stencil tinted with the palette (forest on paper, cream in dark mode) */
+.crest { flex: none; width: 44px; height: 56px; background: var(--forest); -webkit-mask-position: center; mask-position: center; -webkit-mask-size: contain; mask-size: contain; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; }
+.course-card:not(.on) .crest { opacity: .75; }
 .course-card .cc-meta { font-size: 13px; color: var(--muted); margin-top: 4px; letter-spacing: .04em; }
 .seg { display: flex; border: 1px solid var(--hair-strong); border-radius: var(--r); overflow: hidden; }
 .seg button { flex: 1; min-height: 48px; border: 0; background: transparent; font: 500 12px/1 var(--sans); text-transform: uppercase; letter-spacing: .12em; }

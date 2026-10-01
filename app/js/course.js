@@ -3,8 +3,8 @@
 import { distYd, pointInGeom } from './geo.js';
 
 export const COURSES = [
-  { id: 'balboa-park-18', short: 'Balboa 18', name: 'Balboa Park', sub: 'The Eighteen', par: 72, yards: 6339, file: 'courses/balboa_18_course.json' },
-  { id: 'balboa-park-9', short: 'Balboa 9', name: 'Balboa Park', sub: 'The Executive Nine', par: 32, yards: 2175, file: 'courses/balboa_9_course.json', zones: 'courses/balboa_9_zones.json' },
+  { id: 'balboa-park-18', short: 'Balboa 18', name: 'Balboa Park', sub: 'The Eighteen', crest: 'courses/balboa-emblem.png', par: 72, yards: 6339, file: 'courses/balboa_18_course.json' },
+  { id: 'balboa-park-9', short: 'Balboa 9', name: 'Balboa Park', sub: 'The Executive Nine', crest: 'courses/balboa-emblem.png', par: 32, yards: 2175, file: 'courses/balboa_9_course.json', zones: 'courses/balboa_9_zones.json' },
 ];
 
 // Tee sets as positions in each hole's tee_boxes list (ordered back → forward).

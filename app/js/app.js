@@ -7,7 +7,7 @@ import { recordHoleWeather, backfillPending } from './weather.js';
 import { renderHoleMap, mapEventToLonLat } from './holemap.js';
 import * as R from './rounds.js';
 
-const APP_VERSION = '0.7.1';
+const APP_VERSION = '0.7.2';
 
 const S = {
   view: 'home',
@@ -177,9 +177,10 @@ function viewSetup() {
   <main class="pad">
     <h2>Course</h2>
     ${COURSES.map((c) => `<button class="course-card ${st.courseId === c.id ? 'on' : ''}" data-action="setup" data-k="courseId" data-v="${c.id}">
-      <div class="eyebrow">${esc(c.name)}</div>
-      <div class="cc-name">${esc(c.sub)}</div>
-      <div class="cc-meta">Par ${c.par} · ${c.yards.toLocaleString()} yards</div></button>`).join('')}
+      ${c.crest ? `<span class="crest" style="-webkit-mask-image:url('${c.crest}');mask-image:url('${c.crest}')" aria-hidden="true"></span>` : ''}
+      <span class="cc-text"><span class="eyebrow">${esc(c.name)}</span>
+      <span class="cc-name">${esc(c.sub)}</span>
+      <span class="cc-meta">Par ${c.par} · ${c.yards.toLocaleString()} yards</span></span></button>`).join('')}
     <h2>Tees</h2>
     <div class="seg">${TEE_SETS.map((t, i) => `<button class="${st.teeIdx === i ? 'on' : ''}" data-action="setup" data-k="teeIdx" data-v="${i}">${t.label}</button>`).join('')}</div>
     ${is18 ? `<h2>Holes</h2>

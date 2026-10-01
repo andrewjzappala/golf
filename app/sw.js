@@ -1,11 +1,11 @@
 // Offline support: the whole app and both course files are cached on first load.
 // Bump VERSION whenever any app file changes so phones pick up the new version.
-const VERSION = 'dialed-v0.7.1';
+const VERSION = 'dialed-v0.7.2';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
   'js/app.js', 'js/db.js', 'js/gps.js', 'js/geo.js', 'js/course.js', 'js/clubs.js',
   'js/rounds.js', 'js/holemap.js', 'js/voice.js', 'js/weather.js',
-  'courses/balboa_9_course.json', 'courses/balboa_18_course.json', 'courses/balboa_9_zones.json',
+  'courses/balboa_9_course.json', 'courses/balboa_18_course.json', 'courses/balboa_9_zones.json', 'courses/balboa-emblem.png',
   'fonts/InstrumentSerif-normal.woff2', 'fonts/InstrumentSerif-italic.woff2', 'fonts/Jost-normal.woff2',
   'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png',
 ];
