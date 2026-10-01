@@ -24,11 +24,15 @@ export function parseNote(text, bag) {
   else if (/\bputter\b/.test(t)) out.club = 'P';
   if (out.club && !has(out.club)) delete out.club;
 
-  if (/\b(pull(ed)?|hook(ed)?|left)\b/.test(t)) out.miss = 'left';
-  else if (/\b(push(ed)?|slic(e|ed)|right|shank(ed)?)\b/.test(t)) out.miss = 'right';
-  else if (/\b(short|chunk(ed)?|fat|heavy)\b/.test(t)) out.miss = 'short';
-  else if (/\b(long|flew( it)?|over( the green)?)\b/.test(t)) out.miss = 'long';
-  else if (/\b(pure(d)?|flush(ed)?|perfect|stiff|on target|pin high|great|good)\b/.test(t)) out.miss = 'on_target';
+  // Ignore conditions ("wind off the left", "breeze from the right") when reading the miss
+  const tm = t.replace(/\b(wind|breeze|gust|downwind|into the wind)\b[^,.;]*/g, ' ');
+  if (/\b(pull(ed)?|hook(ed)?)\b/.test(tm)) out.miss = 'left';
+  else if (/\b(push(ed)?|slic(e|ed)|shank(ed)?)\b/.test(tm)) out.miss = 'right';
+  else if (/\bleft\b/.test(tm)) out.miss = 'left';
+  else if (/\bright\b/.test(tm)) out.miss = 'right';
+  else if (/\b(short|chunk(ed)?|fat|heavy)\b/.test(tm)) out.miss = 'short';
+  else if (/\b(long|flew( it)?|over( the green)?)\b/.test(tm)) out.miss = 'long';
+  else if (/\b(pure(d)?|flush(ed)?|perfect|stiff|on target|pin high|great|good)\b/.test(tm)) out.miss = 'on_target';
 
   if (/\bpunch(ed)?\b/.test(t)) out.shotType = 'punch';
   else if (/\bchip(ped)?\b/.test(t)) out.shotType = 'chip';
@@ -40,16 +44,25 @@ export function parseNote(text, bag) {
 const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 export const speechAvailable = !!Recognition;
 
-// One-shot speech capture. Falls back to keyboard dictation if unavailable.
-export function listen(onText, onEnd) {
-  if (!Recognition) return null;
-  const r = new Recognition();
-  r.lang = 'en-US';
-  r.interimResults = false;
-  r.maxAlternatives = 1;
-  r.onresult = (e) => onText(e.results[0][0].transcript);
-  r.onend = onEnd;
-  r.onerror = onEnd;
-  r.start();
-  return r;
+// One-shot speech capture via Safari's speech recognition. This is unreliable in
+// home-screen web apps, so every failure is reported to the caller (never silent).
+// The always-works fallback is the microphone key on the iPhone keyboard.
+export function listen({ onText, onError, onEnd }) {
+  if (!Recognition) { onError?.('unsupported'); onEnd?.(); return null; }
+  let heard = false;
+  try {
+    const r = new Recognition();
+    r.lang = 'en-US';
+    r.interimResults = false;
+    r.maxAlternatives = 1;
+    r.onresult = (e) => { heard = true; onText(e.results[0][0].transcript); };
+    r.onerror = (e) => onError?.(e.error || 'error');
+    r.onend = () => { if (!heard) onError?.('no-speech'); onEnd?.(); };
+    r.start();
+    return r;
+  } catch {
+    onError?.('start-failed');
+    onEnd?.();
+    return null;
+  }
 }

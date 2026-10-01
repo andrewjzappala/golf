@@ -245,3 +245,17 @@ h2 { font: 500 11px/1 var(--sans); text-transform: uppercase; letter-spacing: .1
 .bag input[type=checkbox], .row-field input { width: 20px; height: 20px; accent-color: var(--forest); }
 label.btn { cursor: pointer; }
 p.small { line-height: 1.5; }
+
+/* Voice notes: yellow is the "speak" signal */
+.mic { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; flex: none; }
+.mic rect { fill: currentColor; stroke: none; }
+.chip.voice { display: inline-flex; align-items: center; gap: 6px; background: var(--yellow); color: var(--on-yellow); border-color: var(--yellow); }
+.note-card { position: fixed; z-index: 11; left: 12px; right: 12px; top: calc(env(safe-area-inset-top) + 10px); background: var(--paper); border: 1px solid var(--hair-strong); border-radius: 8px; padding: 6px 16px 14px; box-shadow: 0 12px 40px rgba(12, 18, 14, .25); }
+.note-card textarea { width: 100%; margin-top: 10px; min-height: 84px; padding: 10px 12px; border: 1px solid var(--hair-strong); border-radius: var(--r); background: transparent; color: var(--ink); font: italic 400 20px/1.35 var(--serif); resize: none; -webkit-user-select: text; user-select: text; }
+.note-tools { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+.note-tools .muted { line-height: 1.35; }
+.btn.speak { width: auto; flex: none; margin: 0; padding: 0 18px; min-height: 48px; background: var(--yellow); color: var(--on-yellow); border-color: var(--yellow); }
+.btn.speak .mic { width: 18px; height: 18px; }
+.btn.speak.listening { animation: listening 1.1s ease-in-out infinite; }
+@keyframes listening { 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--yellow) 35%, transparent); } }
+#parsed { margin-top: 8px; }

@@ -7,7 +7,7 @@ import { recordHoleWeather, backfillPending } from './weather.js';
 import { renderHoleMap, mapEventToLonLat } from './holemap.js';
 import * as R from './rounds.js';
 
-const APP_VERSION = '0.5.0';
+const APP_VERSION = '0.6.0';
 
 const S = {
   view: 'home',
@@ -22,6 +22,7 @@ const S = {
   showPuttsOffGreen: false,
   showMap: false,
   editShotId: null,
+  noteShotId: null, // the quick note card
   setup: { courseId: 'balboa-park-18', teeIdx: 0, mode: 'all' },
   summaryRoundId: null,
 };
@@ -248,6 +249,7 @@ function viewHole() {
     </ol>
   </section>
   ${S.editShotId ? editSheet() : ''}
+  ${S.noteShotId ? noteCard() : ''}
   <div class="toast" id="toast"></div>`;
 }
 
@@ -271,10 +273,30 @@ function quickTags(s, c) {
     ${askLie ? `<div class="lbl">Lie for shot ${c.strokes.indexOf(s) + 1}? (map data incomplete here)</div>
       <div class="chips">${['fairway', 'rough', 'sand', 'recovery'].map((l) => `<button class="chip ${s.start.lie === l ? 'on' : ''}" data-action="set-lie" data-id="${s.id}" data-lie="${l}">${LIE_LABEL[l]}</button>`).join('')}</div>` : ''}
     <div class="lbl">Result of ${s.club ? clubById(s.club)?.id || s.club : 'last shot'}</div>
-    <div class="chips">${R.MISSES.map((m) => `<button class="chip ${s.miss === m ? 'on' : ''}" data-action="set-miss" data-id="${s.id}" data-miss="${m}">${MISS_LABEL[m]}</button>`).join('')}
-      <button class="chip" data-action="edit-shot" data-id="${s.id}">+ Note</button></div>
+    <div class="chips"><button class="chip voice" data-action="note" data-id="${s.id}"><svg class="mic" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>Note</button>${R.MISSES.map((m) => `<button class="chip ${s.miss === m ? 'on' : ''}" data-action="set-miss" data-id="${s.id}" data-miss="${m}">${MISS_LABEL[m]}</button>`).join('')}</div>
   </section>`;
 }
+
+// Quick note card: pinned to the TOP so the keyboard never covers it; keyboard opens right away.
+function noteCard() {
+  const s = S.shots.find((x) => x.id === S.noteShotId);
+  if (!s) return '';
+  const club = clubById(s.club)?.id || s.club || 'shot';
+  return `<div class="sheet-bg" data-action="note-done"></div>
+  <div class="note-card">
+    <div class="sheet-head"><b>Note · ${esc(club)}</b><button class="link" data-action="note-done">Save</button></div>
+    <textarea id="note" rows="3" placeholder='e.g. "7 iron, pulled it left, wind into me"'>${esc(s.note)}</textarea>
+    <div class="note-tools">
+      ${speechAvailable && !speechOff() ? `<button class="btn speak" data-action="speak"><svg class="mic" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg><span>Speak</span></button>` : ''}
+      <span class="muted small">${speechAvailable && !speechOff() ? 'or tap' : 'Tap'} the mic on your keyboard to dictate.</span>
+    </div>
+    <div class="muted small" id="parsed"></div>
+  </div>`;
+}
+
+const speechOff = () => { try { return localStorage.getItem('speechOff') === '1'; } catch { return false; } };
+const setSpeechOff = () => { try { localStorage.setItem('speechOff', '1'); } catch {} };
+const sheetOpen = () => !!(S.editShotId || S.noteShotId || S.confirm);
 
 function editSheet() {
   const s = S.shots.find((x) => x.id === S.editShotId);
@@ -294,9 +316,8 @@ function editSheet() {
     <div class="chips">${R.SHOT_TYPES.map((t) => `<button class="chip ${s.shotType === t ? 'on' : ''}" data-action="edit-field" data-f="shotType" data-v="${t}">${t}</button>`).join('')}</div>
     <div class="lbl">Result</div>
     <div class="chips">${R.MISSES.map((m) => `<button class="chip ${s.miss === m ? 'on' : ''}" data-action="edit-field" data-f="miss" data-v="${m}">${MISS_LABEL[m]}</button>`).join('')}</div>
-    <div class="lbl">Note ${speechAvailable ? '' : '<span class="muted small">(use the keyboard mic to dictate)</span>'}</div>
-    <div class="note-row"><input id="note" type="text" placeholder='e.g. "7 iron, pulled it left"' value="${esc(s.note)}" autocomplete="off">
-      ${speechAvailable ? `<button class="btn" data-action="mic">Speak</button>` : ''}</div>
+    <div class="lbl">Note <span class="muted small">· tap the mic on your keyboard to dictate</span></div>
+    <div class="note-row"><input id="note" type="text" placeholder='e.g. "7 iron, pulled it left"' value="${esc(s.note)}" autocomplete="off"></div>
     <div class="muted small" id="parsed"></div>`}
     <button class="btn danger" data-action="delete-shot">Delete</button>
   </div>`;
@@ -325,7 +346,7 @@ function renderLive() {
   $app.querySelectorAll('[data-club-btn]').forEach((b) => b.classList.toggle('suggest', b.dataset.clubBtn === c.suggestion));
   // Switch between clubs and putt buckets when walking onto / off the green
   const onPutts = !!$app.querySelector('.buckets');
-  if (!c.holed && onPutts !== c.puttMode && !S.editShotId) render();
+  if (!c.holed && onPutts !== c.puttMode && !sheetOpen()) render();
 }
 
 function toast(msg) {
@@ -453,7 +474,7 @@ async function addShot({ club, shotType, bucketFt }) {
       }
       await recompute();
       // Don't redraw under an open edit sheet (it would wipe a note being typed)
-      if (!(final && S.editShotId)) render();
+      if (!(final && sheetOpen())) render();
     });
   } else {
     await recompute();
@@ -601,13 +622,38 @@ const actions = {
     S.editShotId = null;
     await recompute(); render();
   },
-  mic: (el) => {
-    el.textContent = '…';
-    listen((text) => {
-      const input = document.getElementById('note');
-      input.value = (input.value ? input.value + ' ' : '') + text;
-      showParsed();
-    }, () => { el.textContent = 'Speak'; });
+  note: (el) => {
+    S.noteShotId = el.dataset.id;
+    render();
+    const t = document.getElementById('note');
+    if (t) { t.focus(); t.setSelectionRange(t.value.length, t.value.length); showParsed(); }
+  },
+  'note-done': async () => { await saveNote(true); S.noteShotId = null; render(); },
+  speak: (el) => {
+    const label = el.querySelector('span');
+    el.classList.add('listening');
+    label.textContent = 'Listening…';
+    let reported = false;
+    listen({
+      onText: (text) => {
+        const t = document.getElementById('note');
+        if (!t) return;
+        t.value = (t.value ? t.value + ' ' : '') + text;
+        showParsed();
+        saveNote(false);
+      },
+      onError: (code) => {
+        if (reported) return;
+        reported = true;
+        const hard = ['not-allowed', 'service-not-allowed', 'unsupported', 'start-failed', 'audio-capture'].includes(code);
+        const out = document.getElementById('parsed');
+        if (out) out.textContent = hard
+          ? 'Voice capture isn’t available in this app on your phone. Tap the mic on your keyboard instead.'
+          : 'Didn’t catch that. Try again, or tap the mic on your keyboard.';
+        if (hard) { setSpeechOff(); el.remove(); document.getElementById('note')?.focus(); }
+      },
+      onEnd: () => { el.classList.remove('listening'); label.textContent = 'Speak'; },
+    });
   },
   'finish-round': finishRound,
   'open-summary': (el) => openSummary(el.dataset.id),
@@ -647,17 +693,26 @@ function showParsed() {
   out.textContent = parts.length ? `Will set: ${parts.join(', ')}` : '';
 }
 
-async function saveNote() {
+// Saves the note text as you go; club/miss/type from the note are applied when you finish (apply = true).
+async function saveNote(apply = true) {
   const input = document.getElementById('note');
-  const s = S.shots.find((x) => x.id === S.editShotId);
-  if (!input || !s || input.value === (s.note || '')) return;
+  const s = S.shots.find((x) => x.id === (S.noteShotId || S.editShotId));
+  if (!input || !s) return;
+  const changed = input.value !== (s.note || '');
+  if (!changed && !(apply && s.noteUnapplied)) return;
   s.note = input.value;
-  const p = parseNote(s.note, S.bag);
-  if (p.club) s.club = p.club;
-  if (p.miss) s.miss = p.miss;
-  if (p.shotType) s.shotType = p.shotType;
+  s.noteUnapplied = !apply;
+  if (apply) {
+    const p = parseNote(s.note, S.bag);
+    if (p.club) s.club = p.club;
+    if (p.miss) s.miss = p.miss;
+    if (p.shotType) s.shotType = p.shotType;
+  }
   await db.put('shots', s);
 }
+
+let noteTimer;
+document.addEventListener('visibilitychange', () => { if (document.hidden) saveNote(true); });
 
 $app.addEventListener('click', (e) => {
   const el = e.target.closest('[data-action]');
@@ -668,7 +723,11 @@ $app.addEventListener('click', (e) => {
 });
 
 $app.addEventListener('input', (e) => {
-  if (e.target.id === 'note') showParsed();
+  if (e.target.id === 'note') {
+    showParsed();
+    clearTimeout(noteTimer);
+    noteTimer = setTimeout(() => saveNote(false), 500); // keep typing/dictation safe if the phone locks
+  }
 });
 
 $app.addEventListener('change', async (e) => {
