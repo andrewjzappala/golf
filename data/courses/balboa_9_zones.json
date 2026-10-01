@@ -2572,7 +2572,7 @@
    "notes": [
     "Long par 3: 184 front, 194 center, 204 back. Between clubs, club down. Short is fine.",
     "The bunker short-right isn't penal: lots of green to work with.",
-    "The left side is tricky. Long is dead."
+    "Far left is dead: a swale with bald lies leaves a high shot off a bare lie. Long is dead too."
    ],
    "caddy": {
     "between_clubs": "down",
@@ -2752,8 +2752,8 @@
       "coordinates": [
        [
         [
-         -117.1368895,
-         32.7216551
+         -117.136981,
+         32.7216839
         ],
         [
          -117.1370543,
@@ -2764,12 +2764,12 @@
          32.7213814
         ],
         [
-         -117.1370343,
-         32.7213295
+         -117.1371258,
+         32.7213583
         ],
         [
-         -117.1368895,
-         32.7216551
+         -117.136981,
+         32.7216839
         ]
        ]
       ]
@@ -2777,6 +2777,39 @@
     },
     {
      "id": "h8-3",
+     "kind": "dead",
+     "label": "Far left: swale, bald lies",
+     "source": "manual",
+     "polygon": {
+      "type": "Polygon",
+      "coordinates": [
+       [
+        [
+         -117.1368346,
+         32.7216378
+        ],
+        [
+         -117.136981,
+         32.7216839
+        ],
+        [
+         -117.1371601,
+         32.7212813
+        ],
+        [
+         -117.1370136,
+         32.7212352
+        ],
+        [
+         -117.1368346,
+         32.7216378
+        ]
+       ]
+      ]
+     }
+    },
+    {
+     "id": "h8-4",
      "kind": "dead",
      "label": "Long: dead",
      "source": "manual",
@@ -3284,6 +3317,96 @@
     },
     {
      "id": "h9-3",
+     "kind": "trouble",
+     "label": "Fairway bunker right, ~200 off the tee",
+     "source": "manual",
+     "polygon": {
+      "type": "Polygon",
+      "coordinates": [
+       [
+        [
+         -117.1373166,
+         32.722894
+        ],
+        [
+         -117.1373112,
+         32.7228727
+        ],
+        [
+         -117.1372981,
+         32.7228604
+        ],
+        [
+         -117.1372742,
+         32.7228555
+        ],
+        [
+         -117.1372504,
+         32.7228558
+        ],
+        [
+         -117.1372142,
+         32.7228578
+        ],
+        [
+         -117.1371864,
+         32.7228681
+        ],
+        [
+         -117.1371687,
+         32.7228876
+        ],
+        [
+         -117.1371614,
+         32.7229009
+        ],
+        [
+         -117.1371564,
+         32.7229252
+        ],
+        [
+         -117.1371656,
+         32.7229401
+        ],
+        [
+         -117.1371833,
+         32.7229491
+        ],
+        [
+         -117.1372041,
+         32.7229478
+        ],
+        [
+         -117.1372219,
+         32.7229355
+        ],
+        [
+         -117.1372373,
+         32.7229258
+        ],
+        [
+         -117.1372681,
+         32.7229219
+        ],
+        [
+         -117.1372904,
+         32.7229193
+        ],
+        [
+         -117.1373074,
+         32.722909
+        ],
+        [
+         -117.1373166,
+         32.722894
+        ]
+       ]
+      ]
+     },
+     "from_feature": "way/1022379481"
+    },
+    {
+     "id": "h9-4",
      "kind": "safe",
      "label": "Short and short-right of the green",
      "source": "manual",
@@ -3316,7 +3439,7 @@
      }
     },
     {
-     "id": "h9-4",
+     "id": "h9-5",
      "kind": "dead",
      "label": "Left of the green",
      "source": "manual",
@@ -3349,7 +3472,7 @@
      }
     },
     {
-     "id": "h9-5",
+     "id": "h9-6",
      "kind": "dead",
      "label": "Right of the green: fence",
      "source": "manual",
@@ -3382,7 +3505,7 @@
      }
     },
     {
-     "id": "h9-6",
+     "id": "h9-7",
      "kind": "dead",
      "label": "Long",
      "source": "manual",

@@ -686,7 +686,7 @@
       "notes": [
         "Long par 3: 184 front, 194 center, 204 back. Between clubs, club down. Short is fine.",
         "The bunker short-right isn't penal: lots of green to work with.",
-        "The left side is tricky. Long is dead."
+        "Far left is dead: a swale with bald lies leaves a high shot off a bare lie. Long is dead too."
       ],
       "caddy": {
         "between_clubs": "down",
@@ -718,8 +718,20 @@
             "back"
           ],
           "side": [
-            "left-18",
+            "left-8",
             "left"
+          ]
+        },
+        {
+          "kind": "dead",
+          "label": "Far left: swale, bald lies",
+          "along": [
+            "front-20",
+            "back+10"
+          ],
+          "side": [
+            "left-24",
+            "left-8"
           ]
         },
         {
@@ -736,7 +748,8 @@
         }
       ],
       "answers": [
-        "Long: dead (2026-10-01)."
+        "Long: dead (2026-10-01).",
+        "Far left of the green: dead (swale, bald lies, high shot off a bald lie) (2026-10-01)."
       ]
     },
     "9": {
@@ -806,6 +819,11 @@
           ]
         },
         {
+          "kind": "trouble",
+          "label": "Fairway bunker right, ~200 off the tee",
+          "feature": "bunker:0"
+        },
+        {
           "kind": "safe",
           "label": "Short and short-right of the green",
           "along": [
@@ -853,6 +871,10 @@
             "right+18"
           ]
         }
+      ],
+      "answers": [
+        "Bunker right off the tee at ~200: real, trouble not dead (2026-10-01).",
+        "No greenside bunker on 9; the map's short-left bunker (bunker:1) is left unmarked. Check on the course (2026-10-01)."
       ]
     }
   },
