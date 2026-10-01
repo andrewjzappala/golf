@@ -630,6 +630,61 @@
           ]
         }
       ]
+    },
+    "8": {
+      "said": "One of the harder holes: a really long par 3. Short totally fine again. Bunker on the right side isn't very penal because it's short and you have a lot of green to work with. The left side of the hole and the green is tricky. Long is very, very tricky. Same motif as most holes: I tend to club down if I'm in between clubs.",
+      "notes": [
+        "Long par 3: 184 front, 194 center, 204 back. Between clubs, club down. Short is fine.",
+        "The bunker short-right isn't penal: lots of green to work with.",
+        "The left side is tricky. Long is very tricky."
+      ],
+      "caddy": {
+        "between_clubs": "down",
+        "why": "Short is fine; left and long are the trouble."
+      },
+      "zones": [
+        {
+          "kind": "safe",
+          "label": "Short",
+          "along": [
+            "front-25",
+            "front"
+          ],
+          "side": [
+            "left",
+            "right+4"
+          ]
+        },
+        {
+          "kind": "safe",
+          "label": "Bunker short-right: not penal",
+          "feature": "bunker:0"
+        },
+        {
+          "kind": "trouble",
+          "label": "Left side of the hole and green",
+          "along": [
+            "front-20",
+            "back"
+          ],
+          "side": [
+            "left-18",
+            "left"
+          ]
+        },
+        {
+          "kind": "trouble",
+          "label": "Long: very tricky",
+          "along": [
+            "back",
+            "back+20"
+          ],
+          "side": [
+            "left-18",
+            "right+12"
+          ]
+        }
+      ]
     }
   },
   "course_notes": [
