@@ -440,6 +440,131 @@
           ]
         }
       ]
+    },
+    "6": {
+      "said": "Generous drivable par 4, plays about 230; elsewhere it'd be a par 3. I go for it with hybrid and make a lot of birdies. Bunkers along the right side, but short-right off the tee is totally fine and gives a really wide green to hit into: 170-210 off the tee on the right, even 10 yds right of the fairway, is fine. Short is fine off the tee. Left/long-left is dead (trees). Left around the green is not a great place. Beyond the green is dead once you're hitting your approach (green runs away). Off the tee you really want to be short: short-left, short-right.",
+      "notes": [
+        "Drivable. Going for it with hybrid has made a lot of birdies.",
+        "If you miss, miss short: short-left and short-right both leave a wide green.",
+        "Layup option: 170\u2013210 down the right, even 10 yds right of the fairway is fine.",
+        "Left and long-left are trees: dead."
+      ],
+      "caddy": {
+        "options": [
+          {
+            "name": "go",
+            "club": "3H",
+            "target": "short of center: short-left or short-right is fine, long is dead"
+          },
+          {
+            "name": "layup",
+            "target_yds": [
+              170,
+              210
+            ],
+            "side": "right half of the fairway, up to 10 yds right of it"
+          }
+        ],
+        "never": "long or left"
+      },
+      "zones": [
+        {
+          "kind": "safe",
+          "label": "Layup: 170\u2013210 down the right",
+          "from": "tee",
+          "along": [
+            170,
+            210
+          ],
+          "side": [
+            0,
+            27
+          ]
+        },
+        {
+          "kind": "safe",
+          "label": "Short off the tee",
+          "from": "tee",
+          "along": [
+            140,
+            172
+          ],
+          "side": [
+            -14,
+            17
+          ]
+        },
+        {
+          "kind": "dead",
+          "label": "Left off the tee: trees",
+          "from": "tee",
+          "along": [
+            150,
+            200
+          ],
+          "side": [
+            -45,
+            -15
+          ]
+        },
+        {
+          "kind": "dead",
+          "label": "Long-left: trees",
+          "from": "tee",
+          "along": [
+            200,
+            215
+          ],
+          "side": [
+            -45,
+            -20
+          ]
+        },
+        {
+          "kind": "safe",
+          "label": "Short of the green (short-left / short-right)",
+          "along": [
+            "front-22",
+            "front"
+          ],
+          "side": [
+            "left-8",
+            "right+10"
+          ]
+        },
+        {
+          "kind": "trouble",
+          "label": "Left of the green",
+          "along": [
+            "front",
+            "back"
+          ],
+          "side": [
+            "left-16",
+            "left"
+          ]
+        },
+        {
+          "kind": "trouble",
+          "label": "Bunker right of the green",
+          "feature": "bunker:0"
+        },
+        {
+          "kind": "dead",
+          "label": "Long: green runs away",
+          "along": [
+            "back",
+            "back+20"
+          ],
+          "side": [
+            "left-20",
+            "right+16"
+          ]
+        }
+      ]
     }
-  }
+  },
+  "course_notes": [
+    "Nearly every green runs back to front. Long is usually dead; miss short and stay below the hole."
+  ]
 }

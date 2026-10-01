@@ -266,6 +266,7 @@ function bookSection(n) {
     <div class="legend"><span><i class="l-dead"></i>Dead</span><span><i class="l-trouble"></i>Trouble</span><span><i class="l-safe"></i>Safe</span></div>
     ${book.notes.map((t) => `<div class="book-note">${esc(t)}</div>`).join('')}
     <ul class="zone-list">${zones.map((z) => `<li><span class="k k-${z.kind}">${z.kind}</span><span>${esc(z.label)}</span></li>`).join('')}</ul>
+    ${(S.course.bookNotes || []).map((t) => `<p class="muted small course-note">${esc(t)}</p>`).join('')}
   </section>`;
 }
 

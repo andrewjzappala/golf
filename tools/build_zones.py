@@ -111,6 +111,32 @@ def build_zone(z, hole, frame, n):
     return out
 
 
+def tee_coords(hole):
+    """Function mapping a lon/lat point to (yards from tee along the hole line, yards right of it)."""
+    c = hole["green"]["center"]
+    kx = EARTH_R * math.cos(math.radians(c[1])) * math.pi / 180
+    ky = EARTH_R * math.pi / 180
+    m = lambda p: ((p[0] - c[0]) * kx, (p[1] - c[1]) * ky)
+    line = [m(p) for p in ((hole.get("hole_line") or {}).get("coordinates") or [hole["tee"]["point"], c])]
+    segs, acc = [], 0.0
+    for a, b in zip(line, line[1:]):
+        L = math.hypot(b[0] - a[0], b[1] - a[1])
+        segs.append((a, b, L, acc)); acc += L
+
+    def f(p):
+        x, y = m(p)
+        best = None
+        for a, b, L, acc0 in segs:
+            ux, uy = (b[0] - a[0]) / L, (b[1] - a[1]) / L
+            t = max(0, min(L, (x - a[0]) * ux + (y - a[1]) * uy))
+            d = math.hypot(x - a[0] - ux * t, y - a[1] - uy * t)
+            side = (x - a[0]) * uy - (y - a[1]) * ux
+            if best is None or d < best[0]:
+                best = (d, (acc0 + t) / YD, side / YD)
+        return best[1], best[2]
+    return f
+
+
 def describe(course):
     for h in course["holes"]:
         along, side, _, e = frame_for(h)
@@ -122,7 +148,16 @@ def describe(course):
                 s = sum(map(side, ring)) / len(ring)
                 ad = "short" if a < e["front"] else "long" if a > e["back"] else "pin-high"
                 sd = "left" if s < e["left"] else "right" if s > e["right"] else "middle"
-                print(f"  {kind[:-1] if kind == 'bunkers' else kind}:{i}  {ad}-{sd}  (along {a:+.0f}, side {s:+.0f} yds from center)")
+                tc = [tee_coords(h)(p) for p in ring]
+                print(f"  {kind[:-1] if kind == 'bunkers' else kind}:{i}  {ad}-{sd}  (along {a:+.0f}, side {s:+.0f} yds from green center;"
+                      f" {min(t[0] for t in tc):.0f}-{max(t[0] for t in tc):.0f} off the tee, {min(t[1] for t in tc):+.0f}..{max(t[1] for t in tc):+.0f} from the line)")
+        if h["par"] > 3:
+            tc = tee_coords(h)
+            fw = [tc(p) for f in h.get("fairways") or [] for p in f["polygon"]["coordinates"][0]]
+            for d0 in range(100, int(h["measured_yards_to_center"]) + 1, 20):
+                band = [p[1] for p in fw if d0 - 10 <= p[0] < d0 + 10]
+                if len(band) > 1:
+                    print(f"  fairway at {d0:3d} off the tee: {min(band):+.0f}..{max(band):+.0f} (~{max(band) - min(band):.0f} wide)")
 
 
 def main():
@@ -142,6 +177,7 @@ def main():
             "zones": [build_zone(z, hole, frame, i) for i, z in enumerate(h.get("zones", []))],
         }
     out = {"course": spec["course"], "source": "manual", "author": spec.get("author"),
+           "course_notes": spec.get("course_notes", []),
            "levels": {"dead": "penalty, lost ball, or near-certain double",
                       "trouble": "hard up-and-down or likely bogey",
                       "safe": "the bailout"},

@@ -24,7 +24,9 @@ export async function loadCourse(id) {
   const course = await res.json();
   course.short = meta.short;
   course.lieFeatures = buildLieFeatures(course);
-  course.book = await loadBook(meta); // Andrew's miss zones + notes (separate manual file)
+  const book = await loadBook(meta); // Andrew's miss zones + notes (separate manual file)
+  course.book = book.holes || {};
+  course.bookNotes = book.course_notes || [];
   cache.set(id, course);
   return course;
 }
@@ -35,7 +37,7 @@ async function loadBook(meta) {
   if (!meta.zones) return {};
   try {
     const res = await fetch(meta.zones);
-    return res.ok ? (await res.json()).holes || {} : {};
+    return res.ok ? await res.json() : {};
   } catch {
     return {};
   }
