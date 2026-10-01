@@ -317,3 +317,6 @@ p.small { line-height: 1.5; }
 .wind .unit { font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); }
 .wind .w-words { flex-basis: 100%; text-align: right; font: italic 400 15px/1.2 var(--serif); color: var(--ink); }
 .wind-arrow { width: 16px; height: 16px; align-self: center; fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+.buckets .btn.tapin { font: 500 12px/1 var(--sans); letter-spacing: .1em; text-transform: uppercase; }
+.btn.holed-wide { margin-top: 6px; }

@@ -8,7 +8,7 @@ import { renderHoleMap, mapEventToLonLat } from './holemap.js';
 import { bearing } from './geo.js';
 import * as R from './rounds.js';
 
-const APP_VERSION = '0.8.0';
+const APP_VERSION = '0.8.1';
 
 const S = {
   view: 'home',
@@ -235,8 +235,10 @@ function viewHole() {
     : puttMode ? `
       ${puttTrail(strokes)}
       <div class="lbl">${strokes.some((s) => s.shotType === 'putt') ? 'Next putt · feet' : 'First putt · feet'}</div>
-      <div class="grid buckets">${R.PUTT_BUCKETS.map((b) => `<button class="btn ${flashing(`putt:${b}`) ? 'flash' : ''}" data-action="putt" data-ft="${b}">${b === 40 ? '40+' : b}</button>`).join('')}
-        <button class="btn primary" data-action="holed">Holed</button></div>
+      <div class="grid buckets">${R.PUTT_BUCKETS.map((b) => b === 1
+          ? `<button class="btn tapin ${flashing('putt:1') ? 'flash' : ''}" data-action="tapin">Tap-in</button>`
+          : `<button class="btn ${flashing(`putt:${b}`) ? 'flash' : ''}" data-action="putt" data-ft="${b}">${R.puttLabel(b)}</button>`).join('')}</div>
+      ${strokes.length ? `<button class="btn primary holed-wide" data-action="holed">Holed</button>` : ''}
       <div class="row-btns">
         ${!c.hr?.pin ? `<button class="btn ghost" data-action="set-pin">Pin is here</button>` : ''}
         <button class="btn ghost" data-action="show-clubs">Not on green</button>
@@ -289,7 +291,7 @@ const flashing = (key) => S.flash?.key === key && Date.now() < S.flash.until;
 function puttTrail(strokes) {
   const putts = strokes.filter((s) => s.shotType === 'putt');
   if (!putts.length) return '';
-  const ft = (s) => `${s.start.distFt ?? s.start.bucketFt ?? '?'}${s.start.bucketFt === 40 ? '+' : ''} ft`;
+  const ft = (s) => (s.start.bucketFt === 1 ? 'tap-in' : `${s.start.distFt ?? s.start.bucketFt ?? '?'}${s.start.bucketFt === 40 ? '+' : ''} ft`);
   return `<div class="putt-trail"><span class="lbl">Putts</span>${putts.map((s, i) => `<b class="${i === putts.length - 1 ? 'last' : ''}">${ft(s)}</b>`).join('<i>→</i>')}</div>`;
 }
 
@@ -322,7 +324,7 @@ function shotRow(s, i) {
   if (s.kind === 'penalty') return `<li class="shot penalty" data-action="edit-shot" data-id="${s.id}"><span class="n">${i + 1}</span><span>Penalty stroke</span></li>`;
   const club = clubById(s.club);
   const from = s.shotType === 'putt'
-    ? `${s.start.distFt ?? '?'} ft${s.start.bucketFt === 40 ? '+' : ''}`
+    ? (s.start.bucketFt === 1 ? 'Tap-in' : `${s.start.distFt ?? '?'} ft${s.start.bucketFt === 40 ? '+' : ''}`)
     : `${s.start.distYds ?? '?'} yds · ${LIE_LABEL[s.start.lie] || '<b class="warn">lie?</b>'}`;
   const tags = [s.shotType !== 'full' && s.shotType !== 'putt' ? s.shotType : null, s.miss ? MISS_LABEL[s.miss] : null].filter(Boolean);
   const acc = s.start.pos?.acc && s.start.pos.acc > 12 ? ` <span class="warn">±${Math.round(s.start.pos.acc)}m</span>` : '';
@@ -374,7 +376,7 @@ function editSheet() {
     <div class="lbl">Club</div>
     <div class="chips">${S.bag.filter((b) => b.active).map((b) => `<button class="chip ${s.club === b.id ? 'on' : ''}" data-action="edit-field" data-f="club" data-v="${b.id}">${b.id}</button>`).join('')}</div>
     ${s.shotType === 'putt' ? `<div class="lbl">Putt distance (ft)</div>
-      <div class="chips">${R.PUTT_BUCKETS.map((b) => `<button class="chip ${s.start.bucketFt === b ? 'on' : ''}" data-action="edit-field" data-f="bucketFt" data-v="${b}">${b === 40 ? '40+' : b}</button>`).join('')}</div>` : `
+      <div class="chips">${R.PUTT_BUCKETS.map((b) => `<button class="chip ${s.start.bucketFt === b ? 'on' : ''}" data-action="edit-field" data-f="bucketFt" data-v="${b}">${R.puttLabel(b)}</button>`).join('')}</div>` : `
     <div class="lbl">Lie (where it was hit from)</div>
     <div class="chips">${R.LIES.map((l) => `<button class="chip ${s.start.lie === l ? 'on' : ''}" data-action="edit-field" data-f="lie" data-v="${l}">${LIE_LABEL[l]}</button>`).join('')}</div>`}
     <div class="lbl">Shot type</div>
@@ -531,14 +533,15 @@ async function addShot({ club, shotType, bucketFt }) {
   // Later putts don't need a GPS fix — the bucket is the distance.
   const needsPos = !(shotType === 'putt' && c.strokes.some((s) => s.shotType === 'putt'));
   if (needsPos) {
+    // The fix is refined ~2 s later; always apply it to the hole the shot was hit on, even if the screen moved on
     gps.capture(async (pos, final) => {
-      if (first && !final) recordHoleWeather(S.round.id, S.hole, pos ? [pos.lon, pos.lat] : getHole(S.course, S.hole).tee.point);
+      if (first && !final) recordHoleWeather(S.round.id, shot.hole, pos ? [pos.lon, pos.lat] : getHole(S.course, shot.hole).tee.point);
       shot.start.pos = pos;
       if (pos && !first && bucketFt == null) {
-        const det = detectLie(S.course, S.hole, [pos.lon, pos.lat]);
+        const det = detectLie(S.course, shot.hole, [pos.lon, pos.lat]);
         if (det.lie) { shot.start.lie = det.lie; shot.lieNeedsConfirm = det.lie === 'rough' && !det.trusted; }
       }
-      await recompute();
+      await recompute(shot.hole);
       // Don't redraw under an open edit sheet (it would wipe a note being typed)
       if (!(final && sheetOpen())) render();
     });
@@ -620,6 +623,11 @@ const actions = {
     if (p) gps.setSimPoint(p);
   },
   club: (el) => { S.flash = { key: `club:${el.dataset.club}`, until: Date.now() + 900 }; addShot({ club: el.dataset.club }); },
+  tapin: async () => {
+    S.flash = { key: 'putt:1', until: Date.now() + 900 };
+    await addShot({ club: 'P', shotType: 'putt', bucketFt: 1 });
+    await actions.holed();
+  },
   putt: (el) => { S.flash = { key: `putt:${el.dataset.ft}`, until: Date.now() + 900 }; addShot({ club: 'P', shotType: 'putt', bucketFt: +el.dataset.ft }); },
   'show-clubs': () => { S.showClubsOnGreen = true; S.showPuttsOffGreen = false; render(); },
   'show-putts': () => { S.showPuttsOffGreen = true; S.showClubsOnGreen = false; render(); },
@@ -781,7 +789,7 @@ let noteTimer;
 document.addEventListener('visibilitychange', () => { if (document.hidden) saveNote(true); });
 
 // A repeat tap on the SAME logging button within 0.9 s is almost always an accidental double tap
-const LOGGING = new Set(['club', 'putt', 'holed', 'penalty']);
+const LOGGING = new Set(['club', 'putt', 'tapin', 'holed', 'penalty']);
 let lastLogTap = { key: '', t: 0 };
 
 $app.addEventListener('click', (e) => {

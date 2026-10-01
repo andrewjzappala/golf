@@ -8,7 +8,8 @@ import { getHole, teeBox } from './course.js';
 export const LIES = ['tee', 'fairway', 'rough', 'sand', 'green', 'recovery', 'penalty'];
 export const SHOT_TYPES = ['full', 'punch', 'chip', 'pitch', 'putt'];
 export const MISSES = ['on_target', 'left', 'right', 'short', 'long'];
-export const PUTT_BUCKETS = [3, 6, 10, 15, 20, 30, 40];
+export const PUTT_BUCKETS = [1, 3, 6, 10, 15, 20, 30, 40]; // 1 = tap-in
+export const puttLabel = (ft) => (ft === 1 ? 'Tap-in' : ft === 40 ? '40+' : `${ft}`);
 
 export function holeOrder(course, mode) {
   const n = course.holes.length;

@@ -44,7 +44,7 @@ app/                               ← the logging web app (step 1), deploy this
   courses/       COPY of data/courses/*.json — re-copy after re-running the importer, and bump VERSION in sw.js
 ```
 
-No build step (Node isn't installed): plain ES modules. Local preview: the preview server can't read ~/Documents (macOS privacy), so rsync `app/` into the scratchpad and serve it from there (`.claude/launch.json`). "Simulate GPS" in Settings lets you tap the hole map to place yourself. The preview browser caches JS modules aggressively. After syncing, add a cache-busting query to the script tag in the scratch copy of index.html (e.g. `js/app.js?preview=N`) or the old code keeps running.
+No build step (Node isn't installed): plain ES modules. Local preview: the preview server can't read ~/Documents (macOS privacy), so rsync `app/` into the scratchpad and serve it from there (`.claude/launch.json`). "Simulate GPS" in Settings lets you tap the hole map to place yourself. The preview server is `serve.py` in the scratchpad, which sends `Cache-Control: no-store`. If the browser still holds old modules from before that change, open the preview at `http://127.0.0.1:8765/` (a separate cache from localhost).
 
 ## Status (2026-09-30)
 
@@ -96,7 +96,7 @@ Store raw facts per shot and derive everything else (scores, distances, strokes 
 
 ### Putting
 - **Full putt records**, not just a count per hole.
-- Phone GPS is too imprecise on the green, so the **first putt distance comes from a one-tap bucket**: 3, 6, 10, 15, 20, 30, 40+ ft. Later putts get a tap each, or can be inferred.
+- Phone GPS is too imprecise on the green, so the **first putt distance comes from a one-tap bucket**: Tap-in (stored as 1 ft), 3, 6, 10, 15, 20, 30, 40+ ft. Later putts get a tap each, or can be inferred. **Tap-in** logs the putt *and* holes it in one tap (Andrew's missed putts are almost always tap-ins).
 
 ### Shot input (no watch, no sensors)
 - The phone does **not** need to be in a pocket. The flow: walk to the ball, tap "here", give the club, hit. **That one tap marks the end of the previous shot and the start of the next.**
