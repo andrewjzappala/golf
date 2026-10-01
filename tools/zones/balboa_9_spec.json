@@ -433,11 +433,6 @@
           ]
         },
         {
-          "kind": "trouble",
-          "label": "Greenside bunker left",
-          "feature": "bunker:1"
-        },
-        {
           "kind": "dead",
           "label": "Long: swale behind the green",
           "along": [
@@ -451,7 +446,8 @@
         }
       ],
       "answers": [
-        "OB fence runs all the way along the right side (2026-10-01)."
+        "OB fence runs all the way along the right side (2026-10-01).",
+        "The only left bunker Andrew knows is the fairway bunker at ~280. The map also shows a bunker pin-high left of the green (bunker:1); left unmarked (it sits inside the left 'trouble' zone anyway). Check on the course (2026-10-01)."
       ]
     },
     "6": {
@@ -690,7 +686,7 @@
       "notes": [
         "Long par 3: 184 front, 194 center, 204 back. Between clubs, club down. Short is fine.",
         "The bunker short-right isn't penal: lots of green to work with.",
-        "The left side is tricky. Long is very tricky."
+        "The left side is tricky. Long is dead."
       ],
       "caddy": {
         "between_clubs": "down",
@@ -727,8 +723,8 @@
           ]
         },
         {
-          "kind": "trouble",
-          "label": "Long: very tricky",
+          "kind": "dead",
+          "label": "Long: dead",
           "along": [
             "back",
             "back+20"
@@ -738,6 +734,9 @@
             "right+12"
           ]
         }
+      ],
+      "answers": [
+        "Long: dead (2026-10-01)."
       ]
     }
   },

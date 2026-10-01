@@ -1768,72 +1768,6 @@
     },
     {
      "id": "h5-8",
-     "kind": "trouble",
-     "label": "Greenside bunker left",
-     "source": "manual",
-     "polygon": {
-      "type": "Polygon",
-      "coordinates": [
-       [
-        [
-         -117.1347378,
-         32.7232878
-        ],
-        [
-         -117.1347365,
-         32.7232624
-        ],
-        [
-         -117.1347237,
-         32.7232488
-        ],
-        [
-         -117.1347009,
-         32.723237
-        ],
-        [
-         -117.1346775,
-         32.7232392
-        ],
-        [
-         -117.1346567,
-         32.7232505
-        ],
-        [
-         -117.1346473,
-         32.7232714
-        ],
-        [
-         -117.1346507,
-         32.7232945
-        ],
-        [
-         -117.1346661,
-         32.7233115
-        ],
-        [
-         -117.1346882,
-         32.7233199
-        ],
-        [
-         -117.134711,
-         32.7233171
-        ],
-        [
-         -117.1347271,
-         32.7233064
-        ],
-        [
-         -117.1347378,
-         32.7232878
-        ]
-       ]
-      ]
-     },
-     "from_feature": "way/1022372737"
-    },
-    {
-     "id": "h5-9",
      "kind": "dead",
      "label": "Long: swale behind the green",
      "source": "manual",
@@ -2638,7 +2572,7 @@
    "notes": [
     "Long par 3: 184 front, 194 center, 204 back. Between clubs, club down. Short is fine.",
     "The bunker short-right isn't penal: lots of green to work with.",
-    "The left side is tricky. Long is very tricky."
+    "The left side is tricky. Long is dead."
    ],
    "caddy": {
     "between_clubs": "down",
@@ -2843,8 +2777,8 @@
     },
     {
      "id": "h8-3",
-     "kind": "trouble",
-     "label": "Long: very tricky",
+     "kind": "dead",
+     "label": "Long: dead",
      "source": "manual",
      "polygon": {
       "type": "Polygon",
