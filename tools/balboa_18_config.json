@@ -1,0 +1,113 @@
+{
+  "course": {
+    "id": "balboa-park-18",
+    "name": "Balboa Park Golf Course (18-Hole)",
+    "city": "San Diego, CA",
+    "holes_count": 18,
+    "par": 72,
+    "tee": "Blue",
+    "card_yards": 6347,
+    "rating": 71.2,
+    "slope": 125,
+    "other_tees": {
+      "White": 5835,
+      "Red": 5368
+    },
+    "scorecard_source": "OpenGolfAPI"
+  },
+  "holes": {
+    "1": {
+      "par": 4,
+      "yards": 344,
+      "handicap": 15
+    },
+    "2": {
+      "par": 5,
+      "yards": 502,
+      "handicap": 11
+    },
+    "3": {
+      "par": 4,
+      "yards": 379,
+      "handicap": 5
+    },
+    "4": {
+      "par": 4,
+      "yards": 371,
+      "handicap": 1
+    },
+    "5": {
+      "par": 4,
+      "yards": 302,
+      "handicap": 13
+    },
+    "6": {
+      "par": 3,
+      "yards": 220,
+      "handicap": 3,
+      "printed_card_yards": 210,
+      "note": "Printed card says 210; new back tee added last year plays 220 (confirmed by Andrew)"
+    },
+    "7": {
+      "par": 5,
+      "yards": 463,
+      "handicap": 9
+    },
+    "8": {
+      "par": 4,
+      "yards": 327,
+      "handicap": 17
+    },
+    "9": {
+      "par": 3,
+      "yards": 170,
+      "handicap": 7
+    },
+    "10": {
+      "par": 4,
+      "yards": 439,
+      "handicap": 4
+    },
+    "11": {
+      "par": 4,
+      "yards": 384,
+      "handicap": 12
+    },
+    "12": {
+      "par": 4,
+      "yards": 396,
+      "handicap": 6
+    },
+    "13": {
+      "par": 3,
+      "yards": 134,
+      "handicap": 16
+    },
+    "14": {
+      "par": 5,
+      "yards": 532,
+      "handicap": 8
+    },
+    "15": {
+      "par": 4,
+      "yards": 325,
+      "handicap": 18,
+      "note_verified": "Back tee confirmed at 325 following the dogleg"
+    },
+    "16": {
+      "par": 5,
+      "yards": 555,
+      "handicap": 2
+    },
+    "17": {
+      "par": 3,
+      "yards": 198,
+      "handicap": 14
+    },
+    "18": {
+      "par": 4,
+      "yards": 316,
+      "handicap": 10
+    }
+  }
+}

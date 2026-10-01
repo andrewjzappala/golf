@@ -1,0 +1,22 @@
+{
+  "course": {
+    "id": "balboa-park-9",
+    "name": "Balboa Park Golf Course (9-Hole Executive)",
+    "city": "San Diego, CA",
+    "holes_count": 9,
+    "par": 32,
+    "card_yards": 2175,
+    "scorecard_source": "OpenGolfAPI"
+  },
+  "holes": {
+    "1": {"par": 3, "yards": 150, "handicap": 15},
+    "2": {"par": 3, "yards": 130, "handicap": 17},
+    "3": {"par": 4, "yards": 395, "handicap": 1},
+    "4": {"par": 3, "yards": 175, "handicap": 9},
+    "5": {"par": 4, "yards": 350, "handicap": 3},
+    "6": {"par": 4, "yards": 238, "handicap": 11},
+    "7": {"par": 4, "yards": 218, "handicap": 13},
+    "8": {"par": 3, "yards": 198, "handicap": 7},
+    "9": {"par": 4, "yards": 321, "handicap": 5}
+  }
+}
