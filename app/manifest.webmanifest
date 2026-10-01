@@ -1,6 +1,6 @@
 {
-  "name": "Golf Tracker",
-  "short_name": "Golf",
+  "name": "Dialed",
+  "short_name": "Dialed",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

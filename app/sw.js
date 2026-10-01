@@ -1,6 +1,6 @@
 // Offline support: the whole app and both course files are cached on first load.
 // Bump VERSION whenever any app file changes so phones pick up the new version.
-const VERSION = 'golf-v0.2.0';
+const VERSION = 'dialed-v0.3.0';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
   'js/app.js', 'js/db.js', 'js/gps.js', 'js/geo.js', 'js/course.js', 'js/clubs.js',

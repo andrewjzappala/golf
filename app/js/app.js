@@ -7,7 +7,7 @@ import { recordHoleWeather, backfillPending } from './weather.js';
 import { renderHoleMap, mapEventToLonLat } from './holemap.js';
 import * as R from './rounds.js';
 
-const APP_VERSION = '0.2.0';
+const APP_VERSION = '0.3.0';
 
 const S = {
   view: 'home',
@@ -108,12 +108,12 @@ function viewHome() {
   const first = (S.player.name || '').split(' ')[0];
   const activeSum = active && S.round?.id === active.id ? R.scoreSummary(S.round, S.holeResults) : null;
   return `
-  <header class="bar"><span></span><span class="wordmark">Golf Tracker</span><button class="link" data-action="go" data-view="settings">Settings</button></header>
+  <header class="bar"><span></span><span class="wordmark">Dialed<i class="dot"></i></span><button class="link" data-action="go" data-view="settings">Settings</button></header>
   <main class="pad">
     <section class="hero">
       <div class="eyebrow">${fmtDate(new Date().toISOString(), { weekday: 'long', month: 'long', day: 'numeric' })}</div>
       <h1 class="display">${greeting}${first ? `, <em>${esc(first)}</em>` : ''}.</h1>
-      <div class="goal">Index ${esc(S.player.handicap)} &nbsp;·&nbsp; the goal is 2.</div>
+      <div class="goal">Index ${esc(S.player.handicap)} &nbsp;·&nbsp; the goal is <span class="hl">2</span>.</div>
     </section>
     ${active ? `<button class="card in-play" data-action="resume" data-id="${active.id}">
         <div class="eyebrow">In play</div>
@@ -201,7 +201,7 @@ function viewHole() {
     : `
       <div class="grid clubs">${S.bag.filter((b) => b.active && b.type !== 'putter').map((b) => `
         <button class="btn club ${c.suggestion === b.id ? 'suggest' : ''}" data-action="club" data-club="${b.id}" data-club-btn="${b.id}">
-          <b>${b.id}</b><span>${clubDistance(b, S.profiles).yds || ''}</span></button>`).join('')}
+          <b>${b.id}</b><span>${clubDistance(b).yds || ''}</span></button>`).join('')}
       </div>
       <div class="row-btns">
         ${strokes.length ? `<button class="btn primary" data-action="holed">Holed</button>` : ''}
@@ -350,12 +350,12 @@ function viewSettings() {
     <label class="field">Name <input data-player="name" value="${esc(S.player.name)}"></label>
     <label class="field">Handicap <input data-player="handicap" type="number" step="0.1" inputmode="decimal" value="${esc(S.player.handicap)}"></label>
     <h2>My bag</h2>
-    <p class="muted small">Tick the clubs in the bag. These yardages drive club suggestions until a club has 3+ logged full shots — then your on-course numbers take over.</p>
+    <p class="muted small">Tick the clubs in the bag today (max 14). Yardages are <b>carry</b> and drive the club suggestions. Logged totals from your rounds appear alongside for reference.</p>
     <table class="bag">${S.bag.map((b, i) => `<tr>
       <td><input type="checkbox" data-bag="${i}" data-f="active" ${b.active ? 'checked' : ''}></td>
       <td>${esc(b.label)}</td>
-      <td>${b.type === 'putter' ? '' : `<input type="number" inputmode="numeric" data-bag="${i}" data-f="yds" value="${b.yds}"> yds`}</td>
-      <td class="muted small">${S.profiles[b.id] ? `logged: ${S.profiles[b.id].median} (${S.profiles[b.id].n})` : ''}</td></tr>`).join('')}</table>
+      <td>${b.type === 'putter' ? '' : `<input type="number" inputmode="numeric" data-bag="${i}" data-f="yds" value="${b.yds}"> carry`}</td>
+      <td class="muted small">${S.profiles[b.id] ? `logged total ${S.profiles[b.id].median} (${S.profiles[b.id].n})` : ''}</td></tr>`).join('')}</table>
     <h2>Testing</h2>
     <label class="field row-field"><input type="checkbox" data-action="toggle-sim" ${gps.state.simulate ? 'checked' : ''}> Simulate GPS (tap the hole map to place yourself)</label>
     <h2>Your data</h2>
@@ -563,7 +563,7 @@ const actions = {
     const pick = (arr) => arr.filter((r) => r.roundId === id);
     download(`round-${id.slice(0, 8)}.json`, { ...all, rounds: all.rounds.filter((r) => r.id === id), shots: pick(all.shots), holeResults: pick(all.holeResults), weather: pick(all.weather), meta: [] });
   },
-  'export-all': async () => download(`golf-backup-${new Date().toISOString().slice(0, 10)}.json`, await db.exportAll()),
+  'export-all': async () => download(`dialed-backup-${new Date().toISOString().slice(0, 10)}.json`, await db.exportAll()),
   'delete-round': async (el) => {
     if (!confirm('Delete this round and all its shots? This cannot be undone.')) return;
     await db.deleteRound(el.dataset.id);
@@ -623,7 +623,7 @@ $app.addEventListener('change', async (e) => {
   } else if (t.dataset.action === 'import' && t.files[0]) {
     try {
       const data = JSON.parse(await t.files[0].text());
-      if (data.app !== 'golf-tracker') throw new Error('Not a Golf Tracker backup');
+      if (data.app !== 'golf-tracker') throw new Error('Not a Dialed backup');
       await db.importAll(data);
       S.bag = await db.getMeta('bag', S.bag);
       S.player = await db.getMeta('player', S.player);

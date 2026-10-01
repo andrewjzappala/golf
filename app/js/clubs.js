@@ -2,11 +2,11 @@
 
 import { distYd } from './geo.js';
 
-// Andrew's bag and stock yardages (given 2026-09-30). Editable in Settings;
-// once a club has 3+ logged full shots, his on-course numbers take over.
+// Andrew's bag and stock CARRY yardages (given 2026-09-30). Editable in Settings.
+// The 5 wood and 4 iron swap in and out depending on the course (5W is out by default).
 export const DEFAULT_BAG = [
   { id: 'D', label: 'Driver', type: 'driver', loft: 10.5, yds: 275, active: true },
-  { id: '5W', label: '5 Wood', type: 'wood', loft: 18, yds: 250, active: true },
+  { id: '5W', label: '5 Wood', type: 'wood', loft: 18, yds: 250, active: false },
   { id: '3H', label: '3 Hybrid', type: 'hybrid', loft: 19, yds: 235, active: true },
   { id: '4i', label: '4 Iron', type: 'iron', loft: 21, yds: 220, active: true },
   { id: '5i', label: '5 Iron', type: 'iron', loft: 24, yds: 210, active: true },
@@ -22,7 +22,8 @@ export const DEFAULT_BAG = [
   { id: 'P', label: 'Putter', type: 'putter', loft: 3, yds: 0, active: true },
 ];
 
-// Carry/total/dispersion come later (step 5). For now: median distance of clean full shots.
+// GPS start→end measures TOTAL distance (carry + roll), so it's shown for reference only and
+// does not replace his carry numbers. Carry vs total modelling comes with the caddy (step 5).
 export function buildProfiles(shots) {
   const samples = {};
   for (const s of shots) {
@@ -40,9 +41,8 @@ export function buildProfiles(shots) {
   return profiles;
 }
 
-export function clubDistance(club, profiles) {
-  const p = profiles[club.id];
-  return p && p.n >= 3 ? { yds: p.median, fromHistory: true, n: p.n } : { yds: club.yds, fromHistory: false };
+export function clubDistance(club) {
+  return { yds: club.yds, kind: 'carry' };
 }
 
 // Closest club to the distance (putter excluded). Returns the club id or null.
@@ -51,7 +51,7 @@ export function suggestClub(distanceYds, bag, profiles) {
   let best = null, bestDiff = Infinity;
   for (const c of bag) {
     if (!c.active || c.type === 'putter') continue;
-    const diff = Math.abs(clubDistance(c, profiles).yds - distanceYds);
+    const diff = Math.abs(clubDistance(c).yds - distanceYds);
     if (diff < bestDiff) { best = c.id; bestDiff = diff; }
   }
   return best;

@@ -52,9 +52,9 @@ No build step (Node isn't installed): plain ES modules. Local preview: the previ
 - **Hosting: GitHub Pages** (Andrew's choice). `.github/workflows/pages.yml` publishes `app/` on every push to `main`. Andrew pushes with GitHub Desktop; Pages source must be set to "GitHub Actions" in the repo settings.
 - **Sync:** on-device only for now, plus JSON export/import backup. Cloud sync is still to do.
 - Voice: a note field works with the iPhone keyboard's dictation mic; the Web Speech button only shows if Safari supports it. Needs a real-phone check.
-- **Bag** (`js/clubs.js`): Andrew's own yardages, D 275 · 5W 250 · 3H 235 · 4i 220 · 5i 210 · 6i 195 · 7i 180 · 8i 165 · 9i 155 · PW 145 · AW 135 · 50° 125 · 54° 110 · 58° 95 · putter (15 clubs, one over the 14-club limit; ask which one sits out). Not yet confirmed whether these are carry or total distances.
+- **Bag** (`js/clubs.js`): Andrew's **carry** yardages, D 275 · 5W 250 · 3H 235 · 4i 220 · 5i 210 · 6i 195 · 7i 180 · 8i 165 · 9i 155 · PW 145 · AW 135 · 50° 125 · 54° 110 · 58° 95 · putter. He swaps the **5W and 4i** depending on the course; 5W is benched by default (toggle in Settings). Club suggestions use his carry numbers. GPS-measured shot distances are *total* (carry + roll), so they are shown in Settings for reference only and don't override carry.
 - **Tees:** Andrew plays the **back tees** on both Balboa courses (the default).
-- **Design direction (Andrew):** an elevated modern golf brand / premium social club, not a tech product (references: Manors, Malbon, Bandon Dunes, Rodeo Dunes, Old Barnwell, Cabot Citrus Farms). The hole screen is a **premium yardage book page**: an ink hole drawing (tee at the bottom, green at the top, distance arcs from the green), with the yardages set in the margin. Palette: paper, forest, and ink. Type: Instrument Serif + Jost, self-hosted in `app/fonts/` for offline use. Scorecard uses classic circle and square marks. The app name ("Golf Tracker") and the icon are placeholders awaiting his branding.
+- **Design direction (Andrew):** an elevated modern golf brand / premium social club, not a tech product (references: Manors, Malbon, Bandon Dunes, Rodeo Dunes, Old Barnwell, Cabot Citrus Farms). The hole screen is a **premium yardage book page**: an ink hole drawing (tee at the bottom, green at the top, distance arcs from the green), with the yardages set in the margin. Palette: paper, forest, and ink. Type: Instrument Serif + Jost, self-hosted in `app/fonts/` for offline use. Scorecard uses classic circle and square marks. **Name: Dialed.** Brand accent: **a pop of yellow** (`--yellow`, #f2c230), used sparingly: the wordmark's yellow dot (a golf ball), the suggested club, the player's position on the drawing, birdie marks, and the goal highlight. Icon: italic serif "D" in cream on forest, with the yellow ball as the period (`app/icons/`).
 
 Importer usage: `python3 tools/import_course.py <overpass_export.geojson> <config.json> <output.json>` (requires `shapely` and `pyproj`).
 
@@ -146,5 +146,3 @@ Data sources: geometry from OpenStreetMap (ODbL, attribution required); scorecar
 - Find and document the source of a low-handicap/scratch strokes-gained baseline table.
 - Verify voice input support in iPhone Safari before relying on it; tap input must work on its own.
 - Choose the weather API (per-hole snapshots, including wind direction).
-- Carry vs total for his stock yardages (matters for the caddy).
-- App name and branding (icon, wordmark).
