@@ -1,0 +1,316 @@
+{
+  "course": "balboa-park-9",
+  "course_file": "balboa_9_course.json",
+  "output": "balboa_9_zones.json",
+  "author": "Andrew",
+  "holes": {
+    "1": {
+      "said": "Short is totally fine. Short right is fine and safe. Left is trouble: big fall-off on the left side of the green. Long is usually dead: chipping back down the hill, green runs back to front. Long-left is super dead.",
+      "notes": [
+        "Green runs back to front. Stay below the hole.",
+        "Long-left is the worst miss on the hole."
+      ],
+      "zones": [
+        {
+          "kind": "safe",
+          "label": "Short",
+          "along": [
+            "front-25",
+            "front"
+          ],
+          "side": [
+            "left",
+            "right+4"
+          ]
+        },
+        {
+          "kind": "safe",
+          "label": "Short-right",
+          "along": [
+            "front-25",
+            "center"
+          ],
+          "side": [
+            "right",
+            "right+18"
+          ]
+        },
+        {
+          "kind": "trouble",
+          "label": "Left: fall-off",
+          "along": [
+            "front",
+            "back"
+          ],
+          "side": [
+            "left-18",
+            "left"
+          ]
+        },
+        {
+          "kind": "dead",
+          "label": "Long: chipping down the slope",
+          "along": [
+            "back",
+            "back+20"
+          ],
+          "side": [
+            "left",
+            "right+10"
+          ]
+        },
+        {
+          "kind": "dead",
+          "label": "Long-left: worst miss",
+          "along": [
+            "back",
+            "back+20"
+          ],
+          "side": [
+            "left-18",
+            "left"
+          ]
+        }
+      ]
+    },
+    "2": {
+      "said": "Short hole. Bunker short-left is trouble. Left and long-left: fall-off with bare grass, pretty dead. Right is safe. Short is very safe.",
+      "notes": [
+        "Never left. The fall-off left and long-left is bare ground."
+      ],
+      "zones": [
+        {
+          "kind": "safe",
+          "label": "Short",
+          "along": [
+            "front-25",
+            "front"
+          ],
+          "side": [
+            "left",
+            "right+4"
+          ]
+        },
+        {
+          "kind": "safe",
+          "label": "Right",
+          "along": [
+            "front-6",
+            "back"
+          ],
+          "side": [
+            "right",
+            "right+18"
+          ]
+        },
+        {
+          "kind": "trouble",
+          "label": "Bunker short-left",
+          "feature": "bunker:0"
+        },
+        {
+          "kind": "dead",
+          "label": "Left: bare fall-off",
+          "along": [
+            "front",
+            "back"
+          ],
+          "side": [
+            "left-18",
+            "left"
+          ]
+        },
+        {
+          "kind": "dead",
+          "label": "Long-left: bare fall-off",
+          "along": [
+            "back",
+            "back+18"
+          ],
+          "side": [
+            "left-18",
+            "center"
+          ]
+        }
+      ]
+    },
+    "3": {
+      "said": "Par 4. Don't drive it super far right: sandy area comes in around 240, blocked out by a tree. Hook it too far left: trees. About 270 from the tee, 25 yds offline left, a tree blocks the view of the green. Go zone is right side or middle of the fairway (bunker short-left of the green). Anything long of the green is super trouble: bare lies, green runs away. Left just over the bunker is okay. Just right of the green, a banked hill collects misses and funnels them to the green. Way right, you're chipping down the slope.",
+      "notes": [
+        "Drive it right-center. Left at 270 is blocked by a tree.",
+        "Green runs away from you. Long is the worst miss: bare lies.",
+        "The bank just right of the green feeds misses back toward it."
+      ],
+      "zones": [
+        {
+          "kind": "safe",
+          "label": "Go zone: right-center of the fairway",
+          "from": "tee",
+          "along": [
+            200,
+            290
+          ],
+          "side": [
+            -4,
+            14
+          ]
+        },
+        {
+          "kind": "trouble",
+          "label": "Right: sandy area, tree blocks the green",
+          "from": "tee",
+          "along": [
+            225,
+            265
+          ],
+          "side": [
+            18,
+            40
+          ]
+        },
+        {
+          "kind": "trouble",
+          "label": "Left: trees",
+          "from": "tee",
+          "along": [
+            170,
+            250
+          ],
+          "side": [
+            -40,
+            -20
+          ]
+        },
+        {
+          "kind": "trouble",
+          "label": "Left at 270: tree blocks the view",
+          "from": "tee",
+          "along": [
+            250,
+            300
+          ],
+          "side": [
+            -45,
+            -25
+          ]
+        },
+        {
+          "kind": "trouble",
+          "label": "Bunker short-left",
+          "feature": "bunker:0"
+        },
+        {
+          "kind": "safe",
+          "label": "Just left, over the bunker",
+          "along": [
+            "front+3",
+            "back"
+          ],
+          "side": [
+            "left-8",
+            "left"
+          ]
+        },
+        {
+          "kind": "safe",
+          "label": "Just right: bank funnels it back",
+          "along": [
+            "front",
+            "back"
+          ],
+          "side": [
+            "right",
+            "right+8"
+          ]
+        },
+        {
+          "kind": "trouble",
+          "label": "Way right: chipping down the slope",
+          "along": [
+            "front-5",
+            "back+5"
+          ],
+          "side": [
+            "right+8",
+            "right+25"
+          ]
+        },
+        {
+          "kind": "trouble",
+          "label": "Long: bare lies, green runs away",
+          "note": "Andrew called this 'super trouble'.",
+          "along": [
+            "back",
+            "back+20"
+          ],
+          "side": [
+            "left-8",
+            "right+8"
+          ]
+        }
+      ]
+    },
+    "4": {
+      "said": "Really short, but one of the hardest holes: green runs severely back to front. Short and short-right are good misses. The green runs away from you on the left side, so left is trouble. Anything beyond the green is absolutely dead, especially when greens roll 10-10.5; easy to putt it off the green from above the hole. Stay below the hole at all costs. Spinny green, short club in, so the furthest you'd ever land it is hole high.",
+      "notes": [
+        "Severe back-to-front green. Stay below the hole at all costs.",
+        "Land it no further than hole high. Spinny green, short club in.",
+        "Fast days (10+): from above the hole you can putt it off the green."
+      ],
+      "caddy": {
+        "max_landing": "pin",
+        "why": "Severe back-to-front slope; above the hole is a likely 3-putt or worse."
+      },
+      "zones": [
+        {
+          "kind": "safe",
+          "label": "Short",
+          "along": [
+            "front-25",
+            "front"
+          ],
+          "side": [
+            "left",
+            "right+4"
+          ]
+        },
+        {
+          "kind": "safe",
+          "label": "Short-right",
+          "along": [
+            "front-25",
+            "center"
+          ],
+          "side": [
+            "right",
+            "right+18"
+          ]
+        },
+        {
+          "kind": "trouble",
+          "label": "Left: green runs away",
+          "along": [
+            "front",
+            "back"
+          ],
+          "side": [
+            "left-18",
+            "left"
+          ]
+        },
+        {
+          "kind": "dead",
+          "label": "Long: anything past the green",
+          "along": [
+            "back",
+            "back+20"
+          ],
+          "side": [
+            "left-18",
+            "right+15"
+          ]
+        }
+      ]
+    }
+  }
+}

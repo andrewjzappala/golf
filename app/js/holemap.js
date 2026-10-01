@@ -11,7 +11,7 @@ const poly = (proj, geom, cls) =>
   geom?.type === 'Polygon' ? `<polygon class="${cls}" points="${ring(proj, geom.coordinates[0])}"/>` : '';
 
 // aspect = width / height of the drawing on screen
-export function renderHoleMap({ hole, teeIndex, shots, live, pin, aspect = 0.55 }) {
+export function renderHoleMap({ hole, teeIndex, shots, live, pin, zones = [], aspect = 0.55 }) {
   const tee = teeBox(hole, teeIndex).point;
   const green = hole.green.center;
   const origin = [(tee[0] + green[0]) / 2, (tee[1] + green[1]) / 2];
@@ -23,6 +23,7 @@ export function renderHoleMap({ hole, teeIndex, shots, live, pin, aspect = 0.55 
     ...hole.green.polygon.coordinates[0],
     ...(hole.hole_line?.coordinates || []),
     ...(hole.fairways || []).flatMap((f) => f.polygon.coordinates[0]),
+    ...zones.flatMap((z) => z.polygon.coordinates[0]),
   ].map((p) => proj.toXY(p));
   const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
   let minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
@@ -56,14 +57,21 @@ export function renderHoleMap({ hole, teeIndex, shots, live, pin, aspect = 0.55 
 
   return `<svg class="holemap" viewBox="${minX.toFixed(1)} ${minY.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)}" data-action="map-tap">
     <defs><pattern id="sand-dots" width="${3 * k}" height="${3 * k}" patternUnits="userSpaceOnUse">
-      <circle cx="${1.5 * k}" cy="${1.5 * k}" r="${0.45 * k}" class="m-dot"/></pattern></defs>
+      <circle cx="${1.5 * k}" cy="${1.5 * k}" r="${0.45 * k}" class="m-dot"/></pattern>
+      <pattern id="z-dead-hatch" width="${4 * k}" height="${4 * k}" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+        <line x1="0" y1="0" x2="0" y2="${4 * k}" class="z-dead-line" stroke-width="${1.3 * k}"/></pattern>
+      <pattern id="z-trouble-hatch" width="${6 * k}" height="${6 * k}" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+        <line x1="0" y1="0" x2="0" y2="${6 * k}" class="z-trouble-line" stroke-width="${1 * k}"/></pattern></defs>
     <g stroke-width="${sw}">
       ${(hole.fairways || []).map((f) => poly(proj, f.polygon, 'm-fairway')).join('')}
       ${(hole.water || []).map((f) => poly(proj, f.polygon, 'm-water')).join('')}
       ${(hole.tee_boxes || []).map((t) => poly(proj, t.polygon, 'm-tee')).join('')}
-      ${poly(proj, hole.green.polygon, 'm-green')}
       ${(hole.bunkers || []).map((f) => poly(proj, f.polygon, 'm-sand')).join('')}
     </g>
+    <g class="zones" stroke-width="${(0.9 * k).toFixed(2)}" stroke-dasharray="${2.5 * k} ${2 * k}">
+      ${['safe', 'trouble', 'dead'].flatMap((kind) => zones.filter((z) => z.kind === kind).map((z) => poly(proj, z.polygon, `z-${kind}`))).join('')}
+    </g>
+    <g stroke-width="${sw}">${poly(proj, hole.green.polygon, 'm-green')}</g>
     ${arcs}
     ${line}
     ${shotPts.length > 1 ? `<polyline class="m-shots" points="${shotPts.map((p) => p.join(',')).join(' ')}" stroke-width="${(1.1 * k).toFixed(2)}"/>` : ''}

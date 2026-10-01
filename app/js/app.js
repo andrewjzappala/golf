@@ -1,13 +1,13 @@
 import * as db from './db.js';
 import * as gps from './gps.js';
-import { COURSES, TEE_SETS, loadCourse, getHole, teeBox, detectLie, distancesFrom } from './course.js';
+import { COURSES, TEE_SETS, loadCourse, getHole, teeBox, detectLie, distancesFrom, holeBook } from './course.js';
 import { DEFAULT_BAG, buildProfiles, suggestClub, inferShotType, clubDistance } from './clubs.js';
 import { parseNote, speechAvailable, listen } from './voice.js';
 import { recordHoleWeather, backfillPending } from './weather.js';
 import { renderHoleMap, mapEventToLonLat } from './holemap.js';
 import * as R from './rounds.js';
 
-const APP_VERSION = '0.6.1';
+const APP_VERSION = '0.7.0';
 
 const S = {
   view: 'home',
@@ -242,6 +242,8 @@ function viewHole() {
     </div>` : ''}
   </section>
 
+  ${bookSection(hole.number)}
+
   <section class="notes">
     <h2>Notes · No. ${hole.number}</h2>
     <ol class="shots">
@@ -251,6 +253,20 @@ function viewHole() {
   ${S.editShotId ? editSheet() : ''}
   ${S.noteShotId ? noteCard() : ''}
   <div class="toast" id="toast"></div>`;
+}
+
+// Andrew's book for the hole: miss-zone legend, his notes, and the zone list
+function bookSection(n) {
+  const book = holeBook(S.course, n);
+  if (!book.zones.length && !book.notes.length) return '';
+  const order = { dead: 0, trouble: 1, safe: 2 };
+  const zones = [...book.zones].sort((a, b) => order[a.kind] - order[b.kind]);
+  return `<section class="notes book">
+    <h2>The book · No. ${n}</h2>
+    <div class="legend"><span><i class="l-dead"></i>Dead</span><span><i class="l-trouble"></i>Trouble</span><span><i class="l-safe"></i>Safe</span></div>
+    ${book.notes.map((t) => `<div class="book-note">${esc(t)}</div>`).join('')}
+    <ul class="zone-list">${zones.map((z) => `<li><span class="k k-${z.kind}">${z.kind}</span><span>${esc(z.label)}</span></li>`).join('')}</ul>
+  </section>`;
 }
 
 function shotRow(s, i) {
@@ -341,7 +357,7 @@ function renderLive() {
   const map = $app.querySelector('[data-live="map"]');
   if (map) {
     const aspect = map.clientWidth && map.clientHeight ? map.clientWidth / map.clientHeight : 0.55;
-    map.innerHTML = renderHoleMap({ hole: c.hole, teeIndex: S.round.teeIndex, shots: c.shots, live: c.live, pin: c.pin, aspect });
+    map.innerHTML = renderHoleMap({ hole: c.hole, teeIndex: S.round.teeIndex, shots: c.shots, live: c.live, pin: c.pin, zones: holeBook(S.course, S.hole).zones, aspect });
   }
   $app.querySelectorAll('[data-club-btn]').forEach((b) => b.classList.toggle('suggest', b.dataset.clubBtn === c.suggestion));
   // Switch between clubs and putt buckets when walking onto / off the green

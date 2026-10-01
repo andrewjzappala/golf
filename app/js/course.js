@@ -4,7 +4,7 @@ import { distYd, pointInGeom } from './geo.js';
 
 export const COURSES = [
   { id: 'balboa-park-18', short: 'Balboa 18', name: 'Balboa Park', sub: 'The Eighteen', par: 72, yards: 6339, file: 'courses/balboa_18_course.json' },
-  { id: 'balboa-park-9', short: 'Balboa 9', name: 'Balboa Park', sub: 'The Executive Nine', par: 32, yards: 2175, file: 'courses/balboa_9_course.json' },
+  { id: 'balboa-park-9', short: 'Balboa 9', name: 'Balboa Park', sub: 'The Executive Nine', par: 32, yards: 2175, file: 'courses/balboa_9_course.json', zones: 'courses/balboa_9_zones.json' },
 ];
 
 // Tee sets as positions in each hole's tee_boxes list (ordered back → forward).
@@ -24,11 +24,33 @@ export async function loadCourse(id) {
   const course = await res.json();
   course.short = meta.short;
   course.lieFeatures = buildLieFeatures(course);
+  course.book = await loadBook(meta); // Andrew's miss zones + notes (separate manual file)
   cache.set(id, course);
   return course;
 }
 
 export const getHole = (course, n) => course.holes.find((h) => h.number === n);
+
+async function loadBook(meta) {
+  if (!meta.zones) return {};
+  try {
+    const res = await fetch(meta.zones);
+    return res.ok ? (await res.json()).holes || {} : {};
+  } catch {
+    return {};
+  }
+}
+
+// { zones: [{kind: 'dead'|'trouble'|'safe', label, polygon}], notes: [string] } for a hole
+export const holeBook = (course, n) => course.book?.[n] || { zones: [], notes: [] };
+
+// Which miss zone a point falls in (worst level wins). Used later by the caddy and stats.
+export function zoneAt(course, n, pt) {
+  if (!pt) return null;
+  const order = ['dead', 'trouble', 'safe'];
+  const hits = holeBook(course, n).zones.filter((z) => pointInGeom(pt, z.polygon));
+  return hits.sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind))[0] || null;
+}
 
 export function teeBox(hole, teeIndex) {
   const boxes = hole.tee_boxes?.length ? hole.tee_boxes : [{ point: hole.tee.point, yards_to_center: hole.measured_yards_to_center }];
