@@ -311,6 +311,135 @@
           ]
         }
       ]
+    },
+    "5": {
+      "said": "Short par 4. Fairway bunker left where the fairway narrows, about 280 (from the tee). Playground and fence right: out of bounds, can't miss far right off the tee. Long and far left off the tee is a good miss, but trees run along the left side, so don't miss just short on the left. Driver is very rarely the play because the fairway narrows; hit a 235-240 club like a hybrid where it's wider, leaving a full sand wedge. Around the green: short is totally fine, short-right/right side is okay, anything long is absolutely dead (swale behind the green), left is bare lies and the green pitches away.",
+      "notes": [
+        "Hybrid off the tee, not driver: the fairway shrinks from 34 yds wide at 200 to 16 at 280.",
+        "235\u2013240 off the tee leaves a full sand wedge.",
+        "Anything right off the tee is out of bounds (playground fence).",
+        "Long is dead: swale behind the green."
+      ],
+      "caddy": {
+        "tee_club": "3H",
+        "tee_target_yds": [
+          230,
+          245
+        ],
+        "why": "Fairway narrows to 16 yds at 280 with a bunker left; OB right. Hybrid leaves a full wedge."
+      },
+      "zones": [
+        {
+          "kind": "safe",
+          "label": "Go zone: hybrid to the wide part",
+          "from": "tee",
+          "along": [
+            220,
+            250
+          ],
+          "side": [
+            -15,
+            7
+          ]
+        },
+        {
+          "kind": "dead",
+          "label": "Right: out of bounds (playground fence)",
+          "from": "tee",
+          "along": [
+            110,
+            335
+          ],
+          "side": [
+            20,
+            45
+          ]
+        },
+        {
+          "kind": "trouble",
+          "label": "Left: trees short of the bunker",
+          "from": "tee",
+          "along": [
+            150,
+            265
+          ],
+          "side": [
+            -42,
+            -21
+          ]
+        },
+        {
+          "kind": "trouble",
+          "label": "Fairway bunker left at 280",
+          "feature": "bunker:0"
+        },
+        {
+          "kind": "safe",
+          "label": "Long and far left off the tee",
+          "from": "tee",
+          "along": [
+            270,
+            305
+          ],
+          "side": [
+            -48,
+            -28
+          ]
+        },
+        {
+          "kind": "safe",
+          "label": "Short of the green",
+          "along": [
+            "front-25",
+            "front"
+          ],
+          "side": [
+            "left",
+            "right+4"
+          ]
+        },
+        {
+          "kind": "safe",
+          "label": "Right of the green",
+          "along": [
+            "front-6",
+            "back"
+          ],
+          "side": [
+            "right",
+            "right+15"
+          ]
+        },
+        {
+          "kind": "trouble",
+          "label": "Left: bare lies, green pitches away",
+          "along": [
+            "front",
+            "back"
+          ],
+          "side": [
+            "left-18",
+            "left"
+          ]
+        },
+        {
+          "kind": "trouble",
+          "label": "Greenside bunker left",
+          "feature": "bunker:1"
+        },
+        {
+          "kind": "dead",
+          "label": "Long: swale behind the green",
+          "along": [
+            "back",
+            "back+20"
+          ],
+          "side": [
+            "left-15",
+            "right+15"
+          ]
+        }
+      ]
     }
   }
 }
