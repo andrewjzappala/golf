@@ -562,6 +562,74 @@
           ]
         }
       ]
+    },
+    "7": {
+      "said": "Another generous par 4. The tee box always gives an uphill lie, which promotes a draw, but a big overhanging tree in the middle of the fairway means you have to cut the ball to reach the green: a mind bender. Off the tee, short of the green is totally fine, short-right fine, right of the green totally fine. Left there's a bunker you don't want to be in. Long of the green: not many people go long off the tee; not great, trouble but not dead. No super dead spot except that left bunker, so I try to leave it short of that.",
+      "notes": [
+        "The tee's uphill lie promotes a draw, but the overhanging tree mid-fairway needs a cut.",
+        "The only real disaster is the bunker left of the green. Leave it short of it.",
+        "Short, short-right and right of the green are all fine."
+      ],
+      "caddy": {
+        "shape": "cut",
+        "why": "Overhanging tree in the middle of the fairway blocks the draw line; the uphill tee lie fights you.",
+        "aim": "short or short-right of the green; never the left bunker"
+      },
+      "zones": [
+        {
+          "kind": "safe",
+          "label": "Short of the green",
+          "along": [
+            "front-25",
+            "front"
+          ],
+          "side": [
+            "left",
+            "right+4"
+          ]
+        },
+        {
+          "kind": "safe",
+          "label": "Short-right",
+          "along": [
+            "front-25",
+            "center"
+          ],
+          "side": [
+            "right",
+            "right+18"
+          ]
+        },
+        {
+          "kind": "safe",
+          "label": "Right of the green",
+          "along": [
+            "center",
+            "back"
+          ],
+          "side": [
+            "right",
+            "right+12"
+          ]
+        },
+        {
+          "kind": "dead",
+          "label": "Bunker left of the green",
+          "feature": "bunker:2"
+        },
+        {
+          "kind": "trouble",
+          "label": "Long",
+          "along": [
+            "back",
+            "back+18"
+          ],
+          "side": [
+            "left",
+            "right+12"
+          ]
+        }
+      ]
     }
   },
   "course_notes": [
