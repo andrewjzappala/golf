@@ -738,6 +738,122 @@
       "answers": [
         "Long: dead (2026-10-01)."
       ]
+    },
+    "9": {
+      "said": "Relatively short par 4. The fairway cants right to left after about 230, so hug the right side. OB fence along the left: you can't go left, you'll be in the parking lot. Lots of eucalyptus trees on the right. Demands a straight ball, not a long one. If I'm driving it well I'll hit driver; I can push it to 50 yds from the green or closer. But a lot of times hybrid off the tee is perfect: it leaves a wedge and is easier to control. Around the green: long and left are pretty dead. Short and short-right are fine. Right there's a fence, so that's kind of dead too. You need to be pretty accurate around the green.",
+      "notes": [
+        "Hybrid off the tee leaves a wedge and is easier to control. Driver only when you're driving it well (gets to ~50 out).",
+        "The fairway cants right to left past 230. Hug the right side.",
+        "OB left: parking-lot fence. Eucalyptus right. A straight ball, not a long one.",
+        "Around the green, long, left and right are all dead. Miss short or short-right."
+      ],
+      "caddy": {
+        "preferred": "3H",
+        "options": [
+          {
+            "name": "hybrid",
+            "club": "3H",
+            "target": "right half of the fairway (cants right to left past 230)",
+            "why": "Leaves a wedge; easier to control."
+          },
+          {
+            "name": "driver",
+            "club": "D",
+            "when": "only when driving it well",
+            "result": "can get to ~50 yds or closer"
+          }
+        ],
+        "never": "left (OB)"
+      },
+      "zones": [
+        {
+          "kind": "safe",
+          "label": "Hybrid zone: right half of the fairway",
+          "from": "tee",
+          "along": [
+            215,
+            250
+          ],
+          "side": [
+            -1,
+            9
+          ]
+        },
+        {
+          "kind": "dead",
+          "label": "Left: out of bounds (parking-lot fence)",
+          "from": "tee",
+          "along": [
+            90,
+            330
+          ],
+          "side": [
+            -42,
+            -16
+          ]
+        },
+        {
+          "kind": "trouble",
+          "label": "Right: eucalyptus trees",
+          "from": "tee",
+          "along": [
+            110,
+            300
+          ],
+          "side": [
+            17,
+            42
+          ]
+        },
+        {
+          "kind": "safe",
+          "label": "Short and short-right of the green",
+          "along": [
+            "front-25",
+            "front"
+          ],
+          "side": [
+            "left",
+            "right+12"
+          ]
+        },
+        {
+          "kind": "dead",
+          "label": "Left of the green",
+          "along": [
+            "front",
+            "back"
+          ],
+          "side": [
+            "left-18",
+            "left"
+          ]
+        },
+        {
+          "kind": "dead",
+          "label": "Right of the green: fence",
+          "along": [
+            "front",
+            "back"
+          ],
+          "side": [
+            "right+3",
+            "right+18"
+          ]
+        },
+        {
+          "kind": "dead",
+          "label": "Long",
+          "along": [
+            "back",
+            "back+18"
+          ],
+          "side": [
+            "left-18",
+            "right+18"
+          ]
+        }
+      ]
     }
   },
   "course_notes": [
