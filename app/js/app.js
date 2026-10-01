@@ -7,7 +7,7 @@ import { recordHoleWeather, backfillPending } from './weather.js';
 import { renderHoleMap, mapEventToLonLat } from './holemap.js';
 import * as R from './rounds.js';
 
-const APP_VERSION = '0.4.0';
+const APP_VERSION = '0.5.0';
 
 const S = {
   view: 'home',
@@ -93,12 +93,38 @@ function holeCtx() {
 
 function render() {
   const views = { home: viewHome, setup: viewSetup, hole: viewHole, summary: viewSummary, settings: viewSettings };
-  $app.innerHTML = views[S.view]();
+  $app.innerHTML = views[S.view]() + (S.confirm ? confirmSheet() : '');
   if (S.view === 'hole') renderLive();
 }
 
 const courseMeta = (id) => COURSES.find((c) => c.id === id) || {};
 const fmtDate = (iso, opts = { month: 'short', day: 'numeric', year: 'numeric' }) => new Date(iso).toLocaleDateString(undefined, opts);
+
+// Branded confirmation sheet: S.confirm = { title, body, ok, danger, run }
+function confirmSheet() {
+  const c = S.confirm;
+  return `<div class="sheet-bg" data-action="confirm-cancel"></div>
+  <div class="sheet confirm">
+    <h3 class="display">${esc(c.title)}</h3>
+    <p class="muted">${esc(c.body)}</p>
+    <button class="btn ${c.danger ? 'danger-fill' : 'primary'} xl" data-action="confirm-ok">${esc(c.ok)}</button>
+    <button class="btn ghost" data-action="confirm-cancel">Cancel</button>
+  </div>`;
+}
+
+function askConfirm(opts) {
+  S.confirm = opts;
+  render();
+}
+
+async function leaveRound(roundId, remove) {
+  if (remove) await db.deleteRound(roundId);
+  if (S.round?.id === roundId) { S.round = null; gps.stop(); }
+  await refreshRounds();
+  S.view = 'home';
+  render();
+  window.scrollTo(0, 0);
+}
 
 function viewHome() {
   const active = S.rounds.find((r) => r.status === 'active');
@@ -353,11 +379,16 @@ function viewSummary() {
       <tr class="mark-row"><td>Fwy</td>${xs.map((x) => `<td${colCls(x.h)}${jump(x.h)}>${hitMark(x.fw)}</td>`).join('')}<td class="tot small-tot">${cnt('fw')}</td></tr>
       <tr class="mark-row"><td>GIR</td>${xs.map((x) => `<td${colCls(x.h)}${jump(x.h)}>${hitMark(x.gir)}</td>`).join('')}<td class="tot small-tot">${cnt('gir')}</td></tr></table>`;
     }).join('')}
-    ${active ? `<p class="muted small center">Tap a hole to go to it.</p>
+    ${active ? (sum.holesDone === round.holes.length ? `
+      <button class="btn primary xl" data-action="finish-round">Finish round</button>`
+    : `<p class="muted small center">Tap a hole to go to it.</p>
       <button class="btn primary xl" data-action="back-to-hole">Back to No. ${cur}</button>
-      <button class="btn ghost" data-action="finish-round">Finish round</button>` : ''}
-    <button class="btn ghost" data-action="export-round" data-id="${round.id}">Export this round (JSON)</button>
-    <button class="btn danger" data-action="delete-round" data-id="${round.id}">Delete round</button>
+      ${sum.holesDone ? `<button class="btn ghost" data-action="end-early">End round early</button>` : ''}`) : ''}
+    <div class="text-btns">
+      <button class="text-btn" data-action="export-round" data-id="${round.id}">Export</button>
+      <button class="text-btn danger-text" data-action="${active ? 'discard-round' : 'delete-round'}" data-id="${round.id}">${active ? 'Discard round' : 'Delete round'}</button>
+    </div>
+    <div class="maker">Dialed<i class="dot"></i></div>
   </main>`;
 }
 const scoreCls = (d) => (d <= -2 ? 'eagle' : d === -1 ? 'birdie' : d === 1 ? 'bogey' : d >= 2 ? 'double' : '');
@@ -587,13 +618,23 @@ const actions = {
     download(`round-${id.slice(0, 8)}.json`, { ...all, rounds: all.rounds.filter((r) => r.id === id), shots: pick(all.shots), holeResults: pick(all.holeResults), weather: pick(all.weather), meta: [] });
   },
   'export-all': async () => download(`dialed-backup-${new Date().toISOString().slice(0, 10)}.json`, await db.exportAll()),
-  'delete-round': async (el) => {
-    if (!confirm('Delete this round and all its shots? This cannot be undone.')) return;
-    await db.deleteRound(el.dataset.id);
-    if (S.round?.id === el.dataset.id) S.round = null;
-    await refreshRounds();
-    S.view = 'home'; render();
+  'delete-round': (el) => askConfirm({
+    title: 'Delete this round?', body: 'Its scorecard and every shot will be removed from this phone. This can’t be undone.',
+    ok: 'Delete round', danger: true, run: () => leaveRound(el.dataset.id, true),
+  }),
+  'discard-round': (el) => askConfirm({
+    title: 'Discard this round?', body: 'Nothing from it will be saved: no scorecard, no shots, no stats. Use this for test rounds or a round started by mistake.',
+    ok: 'Discard round', danger: true, run: () => leaveRound(el.dataset.id, true),
+  }),
+  'end-early': () => {
+    const sum = R.scoreSummary(S.round, S.holeResults);
+    askConfirm({
+      title: 'End the round here?', body: `Your ${sum.holesDone} completed hole${sum.holesDone === 1 ? '' : 's'} will be saved to your record. Any unfinished hole is left off the card.`,
+      ok: `Save ${sum.holesDone} hole${sum.holesDone === 1 ? '' : 's'} & end`, run: finishRound,
+    });
   },
+  'confirm-ok': async () => { const run = S.confirm.run; S.confirm = null; await run(); },
+  'confirm-cancel': () => { S.confirm = null; render(); },
 };
 
 // Notes: parse on the fly, apply club/miss/type when the sheet closes

@@ -84,6 +84,13 @@ h2 { font: 500 11px/1 var(--sans); text-transform: uppercase; letter-spacing: .1
 .btn.primary:active { opacity: .88; }
 .btn.ghost { border-color: var(--hair); }
 .btn.danger { color: var(--oxblood); border-color: transparent; }
+.btn.danger-fill { background: var(--oxblood); color: var(--paper); border-color: var(--oxblood); }
+.text-btn.danger-text { color: var(--oxblood); }
+.sheet.confirm { padding-top: 22px; }
+.sheet.confirm .display { font-size: 30px; }
+.sheet.confirm p { margin: 10px 0 18px; line-height: 1.5; }
+.maker { margin: 36px 0 8px; text-align: center; font: italic 400 20px/1 var(--serif); color: var(--muted); }
+.maker .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--yellow); margin-left: 2px; }
 .btn.xl { min-height: 64px; font-size: 14px; }
 .row-btns { display: flex; gap: 8px; }
 .row-btns .btn { margin: 4px 0; }
