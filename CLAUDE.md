@@ -49,7 +49,7 @@ No build step (Node isn't installed): plain ES modules. Local preview: the previ
 ## Status (2026-09-30)
 
 - **Step 1 prototype built and tested locally** (simulated GPS): start round → one tap per shot (tapping the club *is* the "here" tap; position is averaged over ~2s of GPS readings) → auto lie detection → putt buckets appear automatically on the green → "Holed" auto-advances → scorecard → finish. Weather per hole from Open-Meteo (no key; offline holes are backfilled later from hourly history).
-- **Hosting: GitHub Pages** (Andrew's choice). `.github/workflows/pages.yml` publishes `app/` on every push to `main`. Andrew pushes with GitHub Desktop; Pages source must be set to "GitHub Actions" in the repo settings.
+- **Live at https://andrewjzappala.github.io/golf/** (GitHub Pages, repo `andrewjzappala/golf`, public). `.github/workflows/pages.yml` publishes `app/` on every push to `main`. Andrew pushes with GitHub Desktop; Pages source must be set to "GitHub Actions" in the repo settings.
 - **Sync:** on-device only for now, plus JSON export/import backup. Cloud sync is still to do.
 - Voice: a note field works with the iPhone keyboard's dictation mic; the Web Speech button only shows if Safari supports it. Needs a real-phone check.
 - **Bag** (`js/clubs.js`): Andrew's **carry** yardages, D 275 · 5W 250 · 3H 235 · 4i 220 · 5i 210 · 6i 195 · 7i 180 · 8i 165 · 9i 155 · PW 145 · AW 135 · 50° 125 · 54° 110 · 58° 95 · putter. He swaps the **5W and 4i** depending on the course; 5W is benched by default (toggle in Settings). Club suggestions use his carry numbers. GPS-measured shot distances are *total* (carry + roll), so they are shown in Settings for reference only and don't override carry.
