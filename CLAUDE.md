@@ -141,6 +141,10 @@ Data sources: geometry from OpenStreetMap (ODbL, attribution required); scorecar
 5. **AI caddy.** Club profiles plus live weather (wind, temperature, humidity) and plays-like distance (elevation). Recommendations should account for his *miss patterns*, not just average distance. On the drivable par 4s, it should weigh driver at the green against a layup to a full wedge.
 6. **Cross-round pattern analysis** (examples: par 3s over 170, wind sensitivity, back-nine fade).
 
+## Miss zones (agreed 2026-10-01, in progress)
+
+Caddie-style "where you can't miss" zones per hole, from Andrew's local knowledge (OSM has no OB, slope or trouble data). There are three levels: **dead** (penalty, lost ball, or near-certain double), **trouble** (hard up-and-down or likely bogey), and **safe** (the bailout). Workflow: Andrew describes each hole (via transcription), Claude drafts the zone polygons from the existing geometry, and Andrew verifies them on the course (in-app adjust, plus "zone edge is here" by GPS). Store zones in a **separate manual file** per course (`source: manual`) so an OSM re-import never overwrites them. Uses: zones shaded on the yardage-book page, caddy club/target choice (step 5), and strokes lost to trouble.
+
 ## Open tasks and questions
 
 - Find and document the source of a low-handicap/scratch strokes-gained baseline table.
