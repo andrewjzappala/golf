@@ -25,10 +25,10 @@
         },
         {
           "kind": "safe",
-          "label": "Short-right",
+          "label": "Short-right and right",
           "along": [
             "front-25",
-            "center"
+            "back"
           ],
           "side": [
             "right",
@@ -71,12 +71,15 @@
             "left"
           ]
         }
+      ],
+      "answers": [
+        "Straight right of the green: safe (2026-10-01)."
       ]
     },
     "2": {
       "said": "Short hole. Bunker short-left is trouble. Left and long-left: fall-off with bare grass, pretty dead. Right is safe. Short is very safe.",
       "notes": [
-        "Never left. The fall-off left and long-left is bare ground."
+        "Never left or long. The fall-off left and long-left is bare ground."
       ],
       "zones": [
         {
@@ -122,23 +125,26 @@
         },
         {
           "kind": "dead",
-          "label": "Long-left: bare fall-off",
+          "label": "Long and long-left: dead",
           "along": [
             "back",
             "back+18"
           ],
           "side": [
             "left-18",
-            "center"
+            "right+10"
           ]
         }
+      ],
+      "answers": [
+        "Straight long: dead (2026-10-01)."
       ]
     },
     "3": {
       "said": "Par 4. Don't drive it super far right: sandy area comes in around 240, blocked out by a tree. Hook it too far left: trees. About 270 from the tee, 25 yds offline left, a tree blocks the view of the green. Go zone is right side or middle of the fairway (bunker short-left of the green). Anything long of the green is super trouble: bare lies, green runs away. Left just over the bunker is okay. Just right of the green, a banked hill collects misses and funnels them to the green. Way right, you're chipping down the slope.",
       "notes": [
         "Drive it right-center. Left at 270 is blocked by a tree.",
-        "Green runs away from you. Long is the worst miss: bare lies.",
+        "Green runs away from you. Long is dead: bare lies.",
         "The bank just right of the green feeds misses back toward it."
       ],
       "zones": [
@@ -236,9 +242,8 @@
           ]
         },
         {
-          "kind": "trouble",
+          "kind": "dead",
           "label": "Long: bare lies, green runs away",
-          "note": "Andrew called this 'super trouble'.",
           "along": [
             "back",
             "back+20"
@@ -248,6 +253,11 @@
             "right+8"
           ]
         }
+      ],
+      "tee_offset": 32,
+      "answers": [
+        "Tee yardages are from the back tee. Map tee is ~32 yds ahead (card 395 vs measured 363), so tee_offset 32 until the back tee is mapped.",
+        "Long of the green: dead (2026-10-01)."
       ]
     },
     "4": {
@@ -439,6 +449,9 @@
             "right+15"
           ]
         }
+      ],
+      "answers": [
+        "OB fence runs all the way along the right side (2026-10-01)."
       ]
     },
     "6": {

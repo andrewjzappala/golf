@@ -14,6 +14,7 @@ or reuse a mapped feature:  "feature": "bunker:0"  (index into the hole's bunker
 Tee-shot zones use "from": "tee": along = yards from the tee along the hole line (follows
 doglegs), side = yards left (negative) / right (positive) of that line, e.g.
   {"from": "tee", "along": [225, 265], "side": [18, 40]}   # right side, 225-265 out
+A hole's "tee_offset" (yards) says how far behind the MAPPED tee Andrew's tee actually is.
 
 Output (data/courses/<course>_zones.json, copied to app/courses/) is a SEPARATE manual file,
 so re-importing course geometry from OpenStreetMap can never overwrite it.
@@ -94,7 +95,10 @@ def build_zone(z, hole, frame, n):
     if z.get("note"):
         out["note"] = z["note"]
     if z.get("from") == "tee":
-        (a0, a1), (s0, s1) = sorted(z["along"]), sorted(z["side"])
+        # Andrew's tee distances are from the tee he plays; if the mapped tee sits ahead of it,
+        # "tee_offset" (yards) shifts them so they land in the right place on the map.
+        off = hole.get("_tee_offset", 0)
+        (a0, a1), (s0, s1) = sorted(v - off for v in z["along"]), sorted(z["side"])
         out["polygon"] = {"type": "Polygon", "coordinates": [tee_frame(hole)(a0, a1, s0, s1)]}
         out["frame"] = "tee"
     elif "feature" in z:
@@ -169,7 +173,8 @@ def main():
         return describe(course)
     holes = {}
     for num, h in spec["holes"].items():
-        hole = next(x for x in course["holes"] if x["number"] == int(num))
+        hole = dict(next(x for x in course["holes"] if x["number"] == int(num)))
+        hole["_tee_offset"] = h.get("tee_offset", 0)
         frame = frame_for(hole)
         holes[num] = {
             "notes": h.get("notes", []),
