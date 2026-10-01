@@ -68,7 +68,9 @@ export async function recomputeHole(course, round, shots, holeResults, holeNum) 
   // Start distance for each stroke
   for (const s of strokes) {
     delete s.start.posSuspect;
-    if (s.start.bucketFt != null) {
+    if (s.start.manualYds != null) {
+      s.start.distYds = s.start.manualYds; // Andrew's own number beats a GPS fix taken from the wrong spot
+    } else if (s.start.bucketFt != null) {
       s.start.distFt = s.start.bucketFt;
       s.start.distYds = Math.round((s.start.bucketFt / 3) * 10) / 10;
     } else if (s.start.pos && !(s === strokes[0] && s.start.lie === 'tee' && farFromTees(hole, s.start.pos))) {
