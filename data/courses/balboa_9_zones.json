@@ -1869,17 +1869,20 @@
   },
   "6": {
    "notes": [
-    "Drivable. Going for it with hybrid has made a lot of birdies.",
+    "Go for it: three-quarter hybrid. Being up near the green makes more birdies than laying back.",
     "If you miss, miss short: short-left and short-right both leave a wide green.",
-    "Layup option: 170\u2013210 down the right, even 10 yds right of the fairway is fine.",
+    "Two bunkers right of the green, at ~220 and ~240 off the tee.",
     "Left and long-left are trees: dead."
    ],
    "caddy": {
+    "preferred": "go",
     "options": [
      {
       "name": "go",
       "club": "3H",
-      "target": "short of center: short-left or short-right is fine, long is dead"
+      "swing": "three-quarter",
+      "target": "up around the green, short of center; long is dead",
+      "why": "A three-quarter hybrid allows for a mishit or wind into the face; being up near the green makes more birdies than laying back."
      },
      {
       "name": "layup",
@@ -2170,7 +2173,7 @@
     {
      "id": "h6-6",
      "kind": "trouble",
-     "label": "Bunker right of the green",
+     "label": "Bunker right of the green (~240 off the tee)",
      "source": "manual",
      "polygon": {
       "type": "Polygon",
@@ -2293,19 +2296,55 @@
        ]
       ]
      }
+    },
+    {
+     "id": "h6-8",
+     "kind": "trouble",
+     "label": "Bunker right of the green (~220 off the tee)",
+     "source": "manual",
+     "note": "Not in the map data; placed from Andrew's description. Check on the course.",
+     "polygon": {
+      "type": "Polygon",
+      "coordinates": [
+       [
+        [
+         -117.1365481,
+         32.7214496
+        ],
+        [
+         -117.1366314,
+         32.7214926
+        ],
+        [
+         -117.1366978,
+         32.7214015
+        ],
+        [
+         -117.1366145,
+         32.7213585
+        ],
+        [
+         -117.1365481,
+         32.7214496
+        ]
+       ]
+      ]
+     }
     }
    ]
   },
   "7": {
    "notes": [
-    "The tee's uphill lie promotes a draw, but the overhanging tree mid-fairway needs a cut.",
-    "The only real disaster is the bunker left of the green. Leave it short of it.",
-    "Short, short-right and right of the green are all fine."
+    "5-iron off the tee. Usually finishes a little short, which is fine.",
+    "The tree ~130 out on the right overhangs the fairway. The uphill tee lie promotes a draw, but you need a cut.",
+    "The only real disaster is the bunker left of the green. Leave it short of it."
    ],
    "caddy": {
+    "tee_club": "5i",
     "shape": "cut",
-    "why": "Overhanging tree in the middle of the fairway blocks the draw line; the uphill tee lie fights you.",
-    "aim": "short or short-right of the green; never the left bunker"
+    "why": "Tree ~130 out on the right overhangs the fairway; the uphill tee lie promotes a draw.",
+    "aim": "short or short-right of the green; never the left bunker",
+    "result": "With the right wind it's reached ~10 ft, but it usually leaves him a little short (which is fine)."
    },
    "zones": [
     {
@@ -2549,6 +2588,49 @@
        ]
       ]
      }
+    },
+    {
+     "id": "h7-5",
+     "kind": "trouble",
+     "label": "Overhanging tree (right side, ~130 off the tee)",
+     "source": "manual",
+     "note": "Tree sits right; its branches overhang the fairway. Placed from Andrew's description.",
+     "polygon": {
+      "type": "Polygon",
+      "coordinates": [
+       [
+        [
+         -117.1364506,
+         32.7221924
+        ],
+        [
+         -117.1363993,
+         32.7222691
+        ],
+        [
+         -117.1363412,
+         32.7223452
+        ],
+        [
+         -117.1361932,
+         32.7222651
+        ],
+        [
+         -117.1362513,
+         32.722189
+        ],
+        [
+         -117.1362909,
+         32.7221302
+        ],
+        [
+         -117.1364506,
+         32.7221924
+        ]
+       ]
+      ]
+     },
+     "frame": "tee"
     }
    ]
   },
