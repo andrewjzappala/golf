@@ -1,14 +1,14 @@
 import * as db from './db.js';
 import * as gps from './gps.js';
-import { COURSES, TEE_SETS, loadCourse, getHole, teeBox, detectLie, distancesFrom, holeBook } from './course.js';
+import { COURSES, TEE_SETS, loadCourse, getHole, teeBox, detectLie, distancesFrom, holeBook, zoneAt, pointAlongHoleLine } from './course.js';
 import { DEFAULT_BAG, buildProfiles, suggestClub, inferShotType, clubDistance } from './clubs.js';
 import { parseNote, speechAvailable, listen } from './voice.js';
 import { recordHoleWeather, backfillPending, currentConditions } from './weather.js';
 import { renderHoleMap, mapEventToLonLat } from './holemap.js';
-import { bearing } from './geo.js';
+import { bearing, distYd } from './geo.js';
 import * as R from './rounds.js';
 
-const APP_VERSION = '0.8.1';
+const APP_VERSION = '0.9.0';
 
 const S = {
   view: 'home',
@@ -86,11 +86,28 @@ function holeCtx() {
   const holed = !!hr?.holed;
   const puttMode = !holed && !S.showClubsOnGreen && (last?.shotType === 'putt' || liveLie.lie === 'green' || S.showPuttsOffGreen);
   // Tee shots use the card-line yardage (follows doglegs); after that, straight-line to the pin.
-  const target = strokes.length === 0 ? teeBox(hole, S.round.teeIndex).yards_to_center : dist?.pin;
+  const toGreen = strokes.length === 0 ? teeBox(hole, S.round.teeIndex).yards_to_center : dist?.pin;
   // On the tee, Andrew's own plan from the book wins over a pure distance match (e.g. hybrid on No. 5)
   const planned = strokes.length === 0 ? bookTeeClub(holeBook(S.course, S.hole).caddy) : null;
-  const suggestion = planned || suggestClub(target, S.bag, S.profiles);
-  return { hole, hr, pin, shots, strokes, last, live, liveLie, dist, holed, puttMode, suggestion };
+  let suggestion = planned || suggestClub(toGreen, S.bag, S.profiles);
+
+  // Target dot. Anchor = you (or the tee box before GPS has a fix). On a par 4/5 tee it starts where the
+  // planned club carries along the hole line; a target he drags or taps wins, and the club follows it.
+  const anchor = live || (strokes.length === 0 ? teeBox(hole, S.round.teeIndex).point : null);
+  let aim = null;
+  const manual = S.target?.hole === S.hole ? S.target.pt : null;
+  let targetPt = manual;
+  if (!targetPt && strokes.length === 0 && hole.par >= 4 && !holed) {
+    const carry = clubById(suggestion)?.yds;
+    if (carry) targetPt = pointAlongHoleLine(hole, Math.min(carry, toGreen - 20));
+  }
+  if (anchor && targetPt && !puttMode) {
+    const toTarget = Math.round(distYd(anchor, targetPt));
+    aim = { anchor, target: targetPt, manual: !!manual, toTarget,
+      toCenter: Math.round(distYd(targetPt, hole.green.center)), zone: zoneAt(S.course, S.hole, targetPt) };
+    if (manual) suggestion = suggestClub(toTarget, S.bag, S.profiles);
+  }
+  return { hole, hr, pin, shots, strokes, last, live, liveLie, dist, holed, puttMode, suggestion, aim };
 }
 
 function bookTeeClub(caddy) {
@@ -219,6 +236,7 @@ function viewHole() {
         <button class="card-btn" data-action="open-summary" data-id="${S.round.id}">
           <span class="score-line">${sum.holesDone ? `${R.fmtToPar(sum.toPar)} <span>thru ${sum.holesDone}</span>` : `<span>${esc(courseMeta(S.round.courseId).sub)}</span>`}</span>
           <span class="cb-lbl">Scorecard &nbsp;→</span></button>
+        <div class="aim-info" data-live="aim"></div>
         <div class="wind" data-live="wind"></div>
         <div class="status"><span data-live="gps">GPS…</span> <span data-live="lie"></span></div>
       </div>
@@ -401,15 +419,18 @@ function renderLive() {
   set('main', d ? (c.pin ? d.pin : d.center) : '–');
   set('main-lbl', c.pin ? 'Pin' : 'Center');
   const st = gps.state;
-  set('gps', st.simulate ? '<span class="sim">Simulated GPS · tap the drawing</span>'
+  set('gps', st.simulate ? '<span class="sim">Simulated GPS · double-tap the drawing to move</span>'
     : st.error ? `<span class="warn">${esc(st.error)}</span>`
     : st.last ? `GPS ±${Math.round(st.last.acc)} m` : 'Finding GPS…');
   set('lie', c.live && c.strokes.length ? `· ${LIE_LABEL[c.liveLie.lie]}` : '');
   set('wind', windHtml(c));
+  set('aim', c.aim ? `<span class="a-sum"><b>${c.aim.toTarget}</b> to target · <b>${c.aim.toCenter}</b> left</span>
+    ${c.aim.zone ? `<span class="a-zone k-${c.aim.zone.kind}">Target in ${c.aim.zone.kind}: ${esc(c.aim.zone.label)}</span>` : ''}
+    ${c.aim.manual ? `<button class="text-btn a-clear" data-action="clear-target">Reset target</button>` : ''}` : '');
   const map = $app.querySelector('[data-live="map"]');
   if (map) {
     const aspect = map.clientWidth && map.clientHeight ? map.clientWidth / map.clientHeight : 0.55;
-    map.innerHTML = renderHoleMap({ hole: c.hole, teeIndex: S.round.teeIndex, shots: c.shots, live: c.live, pin: c.pin, zones: holeBook(S.course, S.hole).zones, aspect });
+    map.innerHTML = renderHoleMap({ hole: c.hole, teeIndex: S.round.teeIndex, shots: c.shots, live: c.live, pin: c.pin, zones: holeBook(S.course, S.hole).zones, aim: c.aim, aspect });
   }
   $app.querySelectorAll('[data-club-btn]').forEach((b) => b.classList.toggle('suggest', b.dataset.clubBtn === c.suggestion));
   // Switch between clubs and putt buckets when walking onto / off the green
@@ -498,7 +519,7 @@ function viewSettings() {
       <td>${b.type === 'putter' ? '' : `<input type="number" inputmode="numeric" data-bag="${i}" data-f="yds" value="${b.yds}"> carry`}</td>
       <td class="muted small">${S.profiles[b.id] ? `logged total ${S.profiles[b.id].median} (${S.profiles[b.id].n})` : ''}</td></tr>`).join('')}</table>
     <h2>Testing</h2>
-    <label class="field row-field"><input type="checkbox" data-action="toggle-sim" ${gps.state.simulate ? 'checked' : ''}> Simulate GPS (tap the hole map to place yourself)</label>
+    <label class="field row-field"><input type="checkbox" data-action="toggle-sim" ${gps.state.simulate ? 'checked' : ''}> Simulate GPS (double-tap the hole drawing to place yourself)</label>
     <h2>Your data</h2>
     <p class="muted small">Rounds are stored on this phone only. Export a backup now and then until cloud sync is added.</p>
     <button class="btn" data-action="export-all">Export all data</button>
@@ -527,6 +548,7 @@ async function addShot({ club, shotType, bucketFt }) {
   if (bucketFt != null) { shot.start.bucketFt = bucketFt; shot.start.lie = 'green'; }
   shot.shotType = shotType || inferShotType(clubObj, shot.start.lie, c.dist?.pin);
   S.shots.push(shot);
+  S.target = null;
   S.showClubsOnGreen = false;
   S.showPuttsOffGreen = false;
 
@@ -554,6 +576,7 @@ async function addShot({ club, shotType, bucketFt }) {
 async function goToHole(n) {
   S.hole = n;
   S.round.currentHole = n;
+  S.target = null;
   S.showClubsOnGreen = S.showPuttsOffGreen = false;
   await db.put('rounds', S.round);
   render();
@@ -616,12 +639,7 @@ const actions = {
   'back-to-hole': () => { S.view = 'hole'; render(); window.scrollTo(0, 0); },
   'jump-hole': (el) => { S.view = 'hole'; goToHole(+el.dataset.h); },
   'toggle-map': async () => { S.showMap = !S.showMap; await db.setMeta('showMap', S.showMap); render(); },
-  'map-tap': (el, e) => {
-    if (!gps.state.simulate) return;
-    const svg = e.target.closest('svg');
-    const p = mapEventToLonLat(svg, e);
-    if (p) gps.setSimPoint(p);
-  },
+  'clear-target': () => { S.target = null; renderLive(); },
   club: (el) => { S.flash = { key: `club:${el.dataset.club}`, until: Date.now() + 900 }; addShot({ club: el.dataset.club }); },
   tapin: async () => {
     S.flash = { key: 'putt:1', until: Date.now() + 900 };
@@ -804,6 +822,43 @@ $app.addEventListener('click', (e) => {
   const fn = actions[el.dataset.action];
   if (fn) fn(el, e);
 });
+
+// The hole drawing: tap or drag to place the target. In Simulate mode, a double-tap moves "you".
+let drag = null, lastTap = { t: 0, prev: null };
+function targetFromEvent(e) {
+  const svg = $app.querySelector('.holemap');
+  const p = svg && mapEventToLonLat(svg, e);
+  if (p) { S.target = { hole: S.hole, pt: p }; renderLive(); }
+}
+$app.addEventListener('pointerdown', (e) => {
+  const wrap = e.target.closest('.page-map');
+  if (!wrap || S.view !== 'hole') return;
+  drag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false };
+  wrap.setPointerCapture?.(e.pointerId);
+});
+$app.addEventListener('pointermove', (e) => {
+  if (!drag || e.pointerId !== drag.id) return;
+  if (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 6) drag.moved = true;
+  if (drag.moved) targetFromEvent(e);
+});
+$app.addEventListener('pointerup', (e) => {
+  if (!drag || e.pointerId !== drag.id) return;
+  const wasDrag = drag.moved;
+  drag = null;
+  if (wasDrag) return;
+  const now = Date.now();
+  if (gps.state.simulate && now - lastTap.t < 320) {
+    S.target = lastTap.prev; // a double-tap isn't a target move: put the target back, then move "you"
+    const svg = $app.querySelector('.holemap');
+    const p = svg && mapEventToLonLat(svg, e);
+    if (p) gps.setSimPoint(p);
+    lastTap = { t: 0, prev: null };
+    return;
+  }
+  lastTap = { t: now, prev: S.target };
+  targetFromEvent(e);
+});
+$app.addEventListener('pointercancel', () => { drag = null; });
 
 // Redraw the hole when the screen size changes (rotation, Safari toolbars)
 let resizeTimer;

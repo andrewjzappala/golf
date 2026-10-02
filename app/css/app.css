@@ -135,7 +135,7 @@ h2 { font: 500 11px/1 var(--sans); text-transform: uppercase; letter-spacing: .1
 /* Hole screen: a yardage-book page — drawing on the left, yardages in the margin */
 /* The page is as tall as its yardage column; the drawing stretches to match (never sets the height itself). */
 .page { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 12px 20px 4px; align-items: stretch; }
-.page-map { position: relative; min-height: 220px; border: 1px solid var(--hair-strong); border-radius: var(--r); overflow: hidden; background: var(--m-rough); }
+.page-map { position: relative; touch-action: none; min-height: 220px; border: 1px solid var(--hair-strong); border-radius: var(--r); overflow: hidden; background: var(--m-rough); }
 .page-yds { display: flex; flex-direction: column; gap: 10px; text-align: right; min-width: 0; }
 .page-yds .y { border-bottom: 1px solid var(--hair); padding-bottom: 6px; }
 .page-yds .y .lbl { display: block; margin: 0 0 2px; }
@@ -320,3 +320,18 @@ p.small { line-height: 1.5; }
 
 .buckets .btn.tapin { font: 500 12px/1 var(--sans); letter-spacing: .1em; text-transform: uppercase; }
 .btn.holed-wide { margin-top: 6px; }
+
+/* Target dot (you → target → center) */
+.a-line { stroke: var(--ink); opacity: .85; }
+.a-line2 { stroke: var(--ink); opacity: .55; }
+.a-target { fill: var(--paper); fill-opacity: .55; stroke: var(--ink); }
+.a-cross { stroke: var(--ink); }
+.a-anchor { fill: var(--paper); stroke: var(--ink); }
+.a-lbl { font-family: var(--serif); fill: var(--ink); stroke: var(--paper); paint-order: stroke; text-anchor: middle; dominant-baseline: middle; }
+.aim-info { margin-top: 8px; text-align: right; font-size: 12px; letter-spacing: .03em; color: var(--muted); }
+.aim-info .a-sum b { font: 400 18px/1 var(--serif); color: var(--ink); }
+.aim-info .a-zone { display: block; margin-top: 3px; font: italic 400 14px/1.25 var(--serif); }
+.aim-info .k-dead { color: var(--oxblood); }
+.aim-info .k-trouble { color: var(--clay); }
+.aim-info .k-safe { color: var(--forest); }
+.aim-info .a-clear { padding: 6px 0 0; font-size: 10px; }

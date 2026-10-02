@@ -11,7 +11,8 @@ const poly = (proj, geom, cls) =>
   geom?.type === 'Polygon' ? `<polygon class="${cls}" points="${ring(proj, geom.coordinates[0])}"/>` : '';
 
 // aspect = width / height of the drawing on screen
-export function renderHoleMap({ hole, teeIndex, shots, live, pin, zones = [], aspect = 0.55 }) {
+// aim = { anchor, target, toTarget, toCenter } draws the target line (you → target → center of green)
+export function renderHoleMap({ hole, teeIndex, shots, live, pin, zones = [], aim = null, aspect = 0.55 }) {
   const tee = teeBox(hole, teeIndex).point;
   const green = hole.green.center;
   const origin = [(tee[0] + green[0]) / 2, (tee[1] + green[1]) / 2];
@@ -55,7 +56,27 @@ export function renderHoleMap({ hole, teeIndex, shots, live, pin, zones = [], as
   const liveXY = live ? proj.toXY(live) : null;
   const sw = (0.9 * k).toFixed(2);
 
-  return `<svg class="holemap" viewBox="${minX.toFixed(1)} ${minY.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)}" data-action="map-tap">
+  let aimSvg = '';
+  if (aim?.anchor && aim?.target) {
+    const a = proj.toXY(aim.anchor), tg = proj.toXY(aim.target), c = proj.toXY(green);
+    // label beside the middle of a segment, pushed off to one side so it doesn't sit on the line
+    const label = (p, q, text) => {
+      const mx = (p[0] + q[0]) / 2, my = (p[1] + q[1]) / 2, L = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1;
+      const nx = -(q[1] - p[1]) / L, ny = (q[0] - p[0]) / L, off = 11 * k;
+      return `<text class="a-lbl" x="${(mx + nx * off).toFixed(1)}" y="${(my + ny * off).toFixed(1)}" font-size="${(15 * k).toFixed(1)}" stroke-width="${(3.5 * k).toFixed(1)}">${text}</text>`;
+    };
+    aimSvg = `<g class="aim">
+      <line class="a-line" x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${tg[0].toFixed(1)}" y2="${tg[1].toFixed(1)}" stroke-width="${(1.3 * k).toFixed(2)}"/>
+      <line class="a-line2" x1="${tg[0].toFixed(1)}" y1="${tg[1].toFixed(1)}" x2="${c[0].toFixed(1)}" y2="${c[1].toFixed(1)}" stroke-width="${(1.1 * k).toFixed(2)}" stroke-dasharray="${3 * k} ${2.5 * k}"/>
+      ${live ? '' : `<circle class="a-anchor" cx="${a[0].toFixed(1)}" cy="${a[1].toFixed(1)}" r="${(3.5 * k).toFixed(1)}" stroke-width="${(1.4 * k).toFixed(2)}"/>`}
+      <circle class="a-target" cx="${tg[0].toFixed(1)}" cy="${tg[1].toFixed(1)}" r="${(7 * k).toFixed(1)}" stroke-width="${(1.6 * k).toFixed(2)}"/>
+      <path class="a-cross" d="M${(tg[0] - 3.5 * k).toFixed(1)} ${tg[1].toFixed(1)}h${(7 * k).toFixed(1)}M${tg[0].toFixed(1)} ${(tg[1] - 3.5 * k).toFixed(1)}v${(7 * k).toFixed(1)}" stroke-width="${(1.2 * k).toFixed(2)}"/>
+      ${label(a, tg, aim.toTarget)}
+      ${label(tg, c, aim.toCenter)}
+    </g>`;
+  }
+
+  return `<svg class="holemap" viewBox="${minX.toFixed(1)} ${minY.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)}">
     <defs><pattern id="sand-dots" width="${3 * k}" height="${3 * k}" patternUnits="userSpaceOnUse">
       <circle cx="${1.5 * k}" cy="${1.5 * k}" r="${0.45 * k}" class="m-dot"/></pattern>
       <pattern id="z-dead-hatch" width="${4 * k}" height="${4 * k}" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
@@ -77,6 +98,7 @@ export function renderHoleMap({ hole, teeIndex, shots, live, pin, zones = [], as
     ${shotPts.length > 1 ? `<polyline class="m-shots" points="${shotPts.map((p) => p.join(',')).join(' ')}" stroke-width="${(1.1 * k).toFixed(2)}"/>` : ''}
     ${shotPts.map((p) => `<circle class="m-shot" cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${(3.6 * k).toFixed(1)}" stroke-width="${(1.2 * k).toFixed(2)}"/>`).join('')}
     <circle class="m-pin" cx="${pinXY[0].toFixed(1)}" cy="${pinXY[1].toFixed(1)}" r="${(2.6 * k).toFixed(1)}"/>
+    ${aimSvg}
     ${liveXY ? `<circle class="m-live" cx="${liveXY[0].toFixed(1)}" cy="${liveXY[1].toFixed(1)}" r="${(5 * k).toFixed(1)}" stroke-width="${(2 * k).toFixed(1)}"/>` : ''}
   </svg>`;
 }

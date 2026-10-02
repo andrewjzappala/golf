@@ -54,6 +54,21 @@ export function zoneAt(course, n, pt) {
   return hits.sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind))[0] || null;
 }
 
+// The point a given number of yards from the tee along the hole's playing line (follows doglegs)
+export function pointAlongHoleLine(hole, yards) {
+  const line = hole.hole_line?.coordinates || [hole.tee.point, hole.green.center];
+  let left = yards;
+  for (let i = 1; i < line.length; i++) {
+    const seg = distYd(line[i - 1], line[i]);
+    if (left <= seg) {
+      const f = left / seg;
+      return [line[i - 1][0] + (line[i][0] - line[i - 1][0]) * f, line[i - 1][1] + (line[i][1] - line[i - 1][1]) * f];
+    }
+    left -= seg;
+  }
+  return line[line.length - 1];
+}
+
 export function teeBox(hole, teeIndex) {
   const boxes = hole.tee_boxes?.length ? hole.tee_boxes : [{ point: hole.tee.point, yards_to_center: hole.measured_yards_to_center }];
   return boxes[Math.min(teeIndex, boxes.length - 1)];
