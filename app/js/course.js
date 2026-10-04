@@ -66,7 +66,10 @@ export function pointAlongHoleLine(hole, yards) {
     }
     left -= seg;
   }
-  return line[line.length - 1];
+  // beyond the green: keep going along the last segment's direction
+  const a = line[line.length - 2], b = line[line.length - 1];
+  const f = 1 + left / distYd(a, b);
+  return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
 }
 
 export function teeBox(hole, teeIndex) {

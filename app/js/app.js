@@ -8,7 +8,7 @@ import { renderHoleMap, mapEventToLonLat } from './holemap.js';
 import { bearing, distYd } from './geo.js';
 import * as R from './rounds.js';
 
-const APP_VERSION = '0.9.0';
+const APP_VERSION = '0.9.1';
 
 const S = {
   view: 'home',
@@ -90,6 +90,9 @@ function holeCtx() {
   // On the tee, Andrew's own plan from the book wins over a pure distance match (e.g. hybrid on No. 5)
   const planned = strokes.length === 0 ? bookTeeClub(holeBook(S.course, S.hole).caddy) : null;
   let suggestion = planned || suggestClub(toGreen, S.bag, S.profiles);
+  // A club he tapped (but hasn't hit yet) is the yellow one; tapping yellow logs the shot
+  const selected = S.selected?.hole === S.hole && S.selected.n === strokes.length ? S.selected.club : null;
+  if (selected) suggestion = selected;
 
   // Target dot. Anchor = you (or the tee box before GPS has a fix). On a par 4/5 tee it starts where the
   // planned club carries along the hole line; a target he drags or taps wins, and the club follows it.
@@ -97,14 +100,24 @@ function holeCtx() {
   let aim = null;
   const manual = S.target?.hole === S.hole ? S.target.pt : null;
   let targetPt = manual;
-  if (!targetPt && strokes.length === 0 && hole.par >= 4 && !holed) {
-    const carry = clubById(suggestion)?.yds;
-    if (carry) targetPt = pointAlongHoleLine(hole, Math.min(carry, toGreen - 20));
+  const carry = clubById(suggestion)?.yds;
+  if (!targetPt && anchor && carry && !holed) {
+    if (strokes.length === 0 && (hole.par >= 4 || selected)) {
+      // tee: along the playing line; the default plan stops short of the green, a picked club goes its full carry
+      targetPt = pointAlongHoleLine(hole, selected ? carry : Math.min(carry, toGreen - 20));
+    } else if (selected) {
+      // later shots: along the straight line from the ball toward the pin
+      const end = pin || hole.green.center, f = carry / distYd(anchor, end);
+      targetPt = [anchor[0] + (end[0] - anchor[0]) * f, anchor[1] + (end[1] - anchor[1]) * f];
+    }
   }
   if (anchor && targetPt && !puttMode) {
     const toTarget = Math.round(distYd(anchor, targetPt));
+    const center = hole.green.center;
     aim = { anchor, target: targetPt, manual: !!manual, toTarget,
-      toCenter: Math.round(distYd(targetPt, hole.green.center)), zone: zoneAt(S.course, S.hole, targetPt) };
+      toCenter: Math.round(distYd(targetPt, center)),
+      past: distYd(anchor, targetPt) > distYd(anchor, center) + 2, // flies beyond the middle of the green
+      zone: zoneAt(S.course, S.hole, targetPt) };
     if (manual) suggestion = suggestClub(toTarget, S.bag, S.profiles);
   }
   return { hole, hr, pin, shots, strokes, last, live, liveLie, dist, holed, puttMode, suggestion, aim };
@@ -262,6 +275,8 @@ function viewHole() {
         <button class="btn ghost" data-action="show-clubs">Not on green</button>
       </div>`
     : `
+      ${c.suggestion && S.selected?.hole === S.hole && S.selected.club === c.suggestion && S.selected.n === strokes.length
+        ? `<div class="sel-hint"><b>${esc(c.suggestion)}</b> selected · tap it again to log the shot</div>` : ''}
       <div class="grid clubs">${S.bag.filter((b) => b.active && b.type !== 'putter').map((b) => `
         <button class="btn club ${c.suggestion === b.id ? 'suggest' : ''} ${flashing(`club:${b.id}`) ? 'flash' : ''}" data-action="club" data-club="${b.id}" data-club-btn="${b.id}">
           <b>${b.id}</b><span>${clubDistance(b).yds || ''}</span></button>`).join('')}
@@ -424,7 +439,7 @@ function renderLive() {
     : st.last ? `GPS ±${Math.round(st.last.acc)} m` : 'Finding GPS…');
   set('lie', c.live && c.strokes.length ? `· ${LIE_LABEL[c.liveLie.lie]}` : '');
   set('wind', windHtml(c));
-  set('aim', c.aim ? `<span class="a-sum"><b>${c.aim.toTarget}</b> to target · <b>${c.aim.toCenter}</b> left</span>
+  set('aim', c.aim ? `<span class="a-sum"><b>${c.aim.toTarget}</b> to target · <b>${c.aim.toCenter}</b> ${c.aim.past ? 'past center' : 'left'}</span>
     ${c.aim.zone ? `<span class="a-zone k-${c.aim.zone.kind}">Target in ${c.aim.zone.kind}: ${esc(c.aim.zone.label)}</span>` : ''}
     ${c.aim.manual ? `<button class="text-btn a-clear" data-action="clear-target">Reset target</button>` : ''}` : '');
   const map = $app.querySelector('[data-live="map"]');
@@ -549,6 +564,7 @@ async function addShot({ club, shotType, bucketFt }) {
   shot.shotType = shotType || inferShotType(clubObj, shot.start.lie, c.dist?.pin);
   S.shots.push(shot);
   S.target = null;
+  S.selected = null;
   S.showClubsOnGreen = false;
   S.showPuttsOffGreen = false;
 
@@ -577,6 +593,7 @@ async function goToHole(n) {
   S.hole = n;
   S.round.currentHole = n;
   S.target = null;
+  S.selected = null;
   S.showClubsOnGreen = S.showPuttsOffGreen = false;
   await db.put('rounds', S.round);
   render();
@@ -639,8 +656,21 @@ const actions = {
   'back-to-hole': () => { S.view = 'hole'; render(); window.scrollTo(0, 0); },
   'jump-hole': (el) => { S.view = 'hole'; goToHole(+el.dataset.h); },
   'toggle-map': async () => { S.showMap = !S.showMap; await db.setMeta('showMap', S.showMap); render(); },
-  'clear-target': () => { S.target = null; renderLive(); },
-  club: (el) => { S.flash = { key: `club:${el.dataset.club}`, until: Date.now() + 900 }; addShot({ club: el.dataset.club }); },
+  'clear-target': () => { S.target = null; S.selected = null; render(); },
+  club: (el) => {
+    const id = el.dataset.club;
+    const c = holeCtx();
+    if (c.suggestion !== id) {
+      // first tap on a different club: make it the yellow one and show where it carries
+      S.selected = { hole: S.hole, n: c.strokes.length, club: id };
+      S.target = null;
+      return render();
+    }
+    if (Date.now() - lastClubLog < 900) return; // accidental double tap on the yellow club
+    lastClubLog = Date.now();
+    S.flash = { key: `club:${id}`, until: Date.now() + 900 };
+    addShot({ club: id });
+  },
   tapin: async () => {
     S.flash = { key: 'putt:1', until: Date.now() + 900 };
     await addShot({ club: 'P', shotType: 'putt', bucketFt: 1 });
@@ -807,7 +837,8 @@ let noteTimer;
 document.addEventListener('visibilitychange', () => { if (document.hidden) saveNote(true); });
 
 // A repeat tap on the SAME logging button within 0.9 s is almost always an accidental double tap
-const LOGGING = new Set(['club', 'putt', 'tapin', 'holed', 'penalty']);
+const LOGGING = new Set(['putt', 'tapin', 'holed', 'penalty']);
+let lastClubLog = 0;
 let lastLogTap = { key: '', t: 0 };
 
 $app.addEventListener('click', (e) => {
@@ -828,7 +859,7 @@ let drag = null, lastTap = { t: 0, prev: null };
 function targetFromEvent(e) {
   const svg = $app.querySelector('.holemap');
   const p = svg && mapEventToLonLat(svg, e);
-  if (p) { S.target = { hole: S.hole, pt: p }; renderLive(); }
+  if (p) { S.target = { hole: S.hole, pt: p }; S.selected = null; renderLive(); }
 }
 $app.addEventListener('pointerdown', (e) => {
   const wrap = e.target.closest('.page-map');
