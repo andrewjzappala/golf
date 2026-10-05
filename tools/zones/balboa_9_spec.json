@@ -325,23 +325,29 @@
     "5": {
       "said": "Short par 4. Fairway bunker left where the fairway narrows, about 280 (from the tee). Playground and fence right: out of bounds, can't miss far right off the tee. Long and far left off the tee is a good miss, but trees run along the left side, so don't miss just short on the left. Driver is very rarely the play because the fairway narrows; hit a 235-240 club like a hybrid where it's wider, leaving a full sand wedge. Around the green: short is totally fine, short-right/right side is okay, anything long is absolutely dead (swale behind the green), left is bare lies and the green pitches away.",
       "notes": [
-        "Hybrid off the tee, not driver: the fairway shrinks from 34 yds wide at 200 to 16 at 280.",
+        "{plan} off the tee, not driver: the fairway shrinks from 34 yds wide at 200 to 16 at 280.",
         "235\u2013240 off the tee leaves a full sand wedge.",
         "Anything right off the tee is out of bounds (playground fence).",
         "Long is dead: swale behind the green."
       ],
       "caddy": {
-        "tee_club": "3H",
-        "tee_target_yds": [
-          230,
-          245
-        ],
-        "why": "Fairway narrows to 16 yds at 280 with a bunker left; OB right. Hybrid leaves a full wedge."
+        "plan": {
+          "carry": 235,
+          "target_yds": [
+            230,
+            245
+          ],
+          "exclude": [
+            "driver"
+          ]
+        },
+        "andrew_club": "3H",
+        "why": "Fairway narrows to 16 yds at 280 with a bunker left; OB right. Laying back to ~235 leaves a full wedge."
       },
       "zones": [
         {
           "kind": "safe",
-          "label": "Go zone: hybrid to the wide part",
+          "label": "Go zone: lay up to the wide part",
           "from": "tee",
           "along": [
             220,
@@ -453,20 +459,25 @@
     "6": {
       "said": "Generous drivable par 4, plays about 230; elsewhere it'd be a par 3. I go for it with hybrid and make a lot of birdies. Bunkers along the right side, but short-right off the tee is totally fine and gives a really wide green to hit into: 170-210 off the tee on the right, even 10 yds right of the fairway, is fine. Short is fine off the tee. Left/long-left is dead (trees). Left around the green is not a great place. Beyond the green is dead once you're hitting your approach (green runs away). Off the tee you really want to be short: short-left, short-right.",
       "notes": [
-        "Go for it: three-quarter hybrid. Being up near the green makes more birdies than laying back.",
+        "Go for it: a three-quarter {plan}. Being up near the green makes more birdies than laying back.",
         "If you miss, miss short: short-left and short-right both leave a wide green.",
         "Two bunkers right of the green, at ~220 and ~240 off the tee.",
         "Left and long-left are trees: dead."
       ],
       "caddy": {
         "preferred": "go",
+        "plan": {
+          "carry": 215,
+          "swing": "three-quarter"
+        },
+        "andrew_club": "3H",
         "options": [
           {
             "name": "go",
-            "club": "3H",
+            "carry": 215,
             "swing": "three-quarter",
             "target": "up around the green, short of center; long is dead",
-            "why": "A three-quarter hybrid allows for a mishit or wind into the face; being up near the green makes more birdies than laying back."
+            "why": "A three-quarter swing allows for a mishit or wind into the face; being up near the green makes more birdies than laying back."
           },
           {
             "name": "layup",
@@ -595,16 +606,18 @@
     "7": {
       "said": "Another generous par 4. The tee box always gives an uphill lie, which promotes a draw, but a big overhanging tree in the middle of the fairway means you have to cut the ball to reach the green: a mind bender. Off the tee, short of the green is totally fine, short-right fine, right of the green totally fine. Left there's a bunker you don't want to be in. Long of the green: not many people go long off the tee; not great, trouble but not dead. No super dead spot except that left bunker, so I try to leave it short of that.",
       "notes": [
-        "5-iron off the tee. Usually finishes a little short, which is fine.",
+        "{plan} off the tee. Usually finishes a little short, which is fine.",
         "The tree ~130 out on the right overhangs the fairway. The uphill tee lie promotes a draw, but you need a cut.",
         "The only real disaster is the bunker left of the green. Leave it short of it."
       ],
       "caddy": {
-        "tee_club": "5i",
+        "plan": {
+          "carry": 210
+        },
+        "andrew_club": "5i",
         "shape": "cut",
         "why": "Tree ~130 out on the right overhangs the fairway; the uphill tee lie promotes a draw.",
-        "aim": "short or short-right of the green; never the left bunker",
-        "result": "With the right wind it's reached ~10 ft, but it usually leaves him a little short (which is fine)."
+        "aim": "short or short-right of the green; never the left bunker"
       },
       "zones": [
         {
@@ -755,23 +768,30 @@
     "9": {
       "said": "Relatively short par 4. The fairway cants right to left after about 230, so hug the right side. OB fence along the left: you can't go left, you'll be in the parking lot. Lots of eucalyptus trees on the right. Demands a straight ball, not a long one. If I'm driving it well I'll hit driver; I can push it to 50 yds from the green or closer. But a lot of times hybrid off the tee is perfect: it leaves a wedge and is easier to control. Around the green: long and left are pretty dead. Short and short-right are fine. Right there's a fence, so that's kind of dead too. You need to be pretty accurate around the green.",
       "notes": [
-        "Hybrid off the tee leaves a wedge and is easier to control. Driver only when you're driving it well (gets to ~50 out).",
+        "{plan} off the tee leaves a wedge and is easier to control. Driver only when you're driving it well (gets to ~50 out).",
         "The fairway cants right to left past 230. Hug the right side.",
         "OB left: parking-lot fence. Eucalyptus right. A straight ball, not a long one.",
         "Around the green, long, left and right are all dead. Miss short or short-right."
       ],
       "caddy": {
-        "preferred": "3H",
+        "preferred": "layup",
+        "plan": {
+          "carry": 235,
+          "exclude": [
+            "driver"
+          ]
+        },
+        "andrew_club": "3H",
         "options": [
           {
-            "name": "hybrid",
-            "club": "3H",
+            "name": "layup",
+            "carry": 235,
             "target": "right half of the fairway (cants right to left past 230)",
             "why": "Leaves a wedge; easier to control."
           },
           {
             "name": "driver",
-            "club": "D",
+            "club_type": "driver",
             "when": "only when driving it well",
             "result": "can get to ~50 yds or closer"
           }
@@ -781,7 +801,7 @@
       "zones": [
         {
           "kind": "safe",
-          "label": "Hybrid zone: right half of the fairway",
+          "label": "Layup zone: right half of the fairway",
           "from": "tee",
           "along": [
             215,

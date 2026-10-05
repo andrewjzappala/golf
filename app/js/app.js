@@ -1,19 +1,19 @@
 import * as db from './db.js';
 import * as gps from './gps.js';
 import { COURSES, TEE_SETS, loadCourse, getHole, teeBox, detectLie, distancesFrom, holeBook, zoneAt, pointAlongHoleLine } from './course.js';
-import { DEFAULT_BAG, buildProfiles, suggestClub, inferShotType, clubDistance } from './clubs.js';
+import { ANDREW_BAG, ANDREW_PLAYER, STARTER_BAG, clubForCarry, buildProfiles, suggestClub, inferShotType, clubDistance } from './clubs.js';
 import { parseNote, speechAvailable, listen } from './voice.js';
 import { recordHoleWeather, backfillPending, currentConditions } from './weather.js';
 import { renderHoleMap, mapEventToLonLat } from './holemap.js';
 import { bearing, distYd } from './geo.js';
 import * as R from './rounds.js';
 
-const APP_VERSION = '0.9.1';
+const APP_VERSION = '0.10.0';
 
 const S = {
   view: 'home',
-  bag: DEFAULT_BAG,
-  player: { name: 'Andrew', handicap: 7.5, hand: 'right', homeCourse: 'balboa-park-18' },
+  bag: STARTER_BAG,
+  player: null,
   profiles: {},
   rounds: [],
   // active round
@@ -37,8 +37,23 @@ const clubById = (id) => S.bag.find((c) => c.id === id);
 // ---------- boot ----------
 
 async function boot() {
-  S.bag = await db.getMeta('bag', DEFAULT_BAG);
-  S.player = await db.getMeta('player', S.player);
+  S.player = await db.getMeta('player', null);
+  S.bag = await db.getMeta('bag', null);
+  if (!S.player) {
+    if ((await db.all('rounds')).length) {
+      // Andrew's phone from before the welcome setup existed: keep his profile and bag
+      S.player = { ...ANDREW_PLAYER };
+      S.bag = S.bag || ANDREW_BAG.map((c) => ({ ...c }));
+      await db.setMeta('player', S.player);
+      await db.setMeta('bag', S.bag);
+    } else {
+      // A new player: first-open setup
+      S.player = { name: '', handicap: '', goal: '', hand: 'right' };
+      S.bag = S.bag || STARTER_BAG.map((c) => ({ ...c }));
+      S.view = 'welcome';
+    }
+  }
+  S.bag = S.bag || ANDREW_BAG.map((c) => ({ ...c }));
   S.showMap = await db.getMeta('showMap', false);
   const simulate = await db.getMeta('simulateGps', false);
   await refreshRounds();
@@ -123,18 +138,27 @@ function holeCtx() {
   return { hole, hr, pin, shots, strokes, last, live, liveLie, dist, holed, puttMode, suggestion, aim };
 }
 
+// The book stores the SHOT (a carry, maybe a three-quarter swing); each player's own bag decides the club
 function bookTeeClub(caddy) {
   if (!caddy) return null;
+  if (caddy.plan?.carry) return clubForCarry(S.bag, caddy.plan.carry, caddy.plan.swing, caddy.plan.exclude);
   const inBag = (id) => (S.bag.some((b) => b.id === id && b.active) ? id : null);
-  if (caddy.tee_club) return inBag(caddy.tee_club);
+  if (caddy.tee_club) return inBag(caddy.tee_club); // older book format
   const opt = caddy.options?.find((o) => o.name === caddy.preferred);
   return inBag(opt?.club) || inBag(caddy.preferred);
+}
+
+// "{plan}" in a book note becomes this player's planned club, e.g. "3 Hybrid off the tee, not driver"
+function bookNote(text, caddy) {
+  if (!text.includes('{plan}')) return text;
+  const club = clubById(bookTeeClub(caddy));
+  return text.replace(/\{plan\}/g, club ? club.label : 'Your layup club');
 }
 
 // ---------- rendering ----------
 
 function render() {
-  const views = { home: viewHome, setup: viewSetup, hole: viewHole, summary: viewSummary, settings: viewSettings };
+  const views = { home: viewHome, setup: viewSetup, hole: viewHole, summary: viewSummary, settings: viewSettings, welcome: viewWelcome };
   $app.innerHTML = views[S.view]() + (S.confirm ? confirmSheet() : '');
   if (S.view === 'hole') { renderLive(); refreshWind(); }
 }
@@ -181,7 +205,7 @@ function viewHome() {
     <section class="hero">
       <div class="eyebrow">${fmtDate(new Date().toISOString(), { weekday: 'long', month: 'long', day: 'numeric' })}</div>
       <h1 class="display">${greeting}${first ? `, <em>${esc(first)}</em>` : ''}.</h1>
-      <div class="goal">Index ${esc(S.player.handicap)} &nbsp;·&nbsp; the goal is <span class="hl">2</span>.</div>
+      ${S.player.handicap !== '' && S.player.handicap != null ? `<div class="goal">Index ${esc(S.player.handicap)}${S.player.goal !== '' && S.player.goal != null ? ` &nbsp;·&nbsp; the goal is <span class="hl">${esc(S.player.goal)}</span>` : ''}.</div>` : ''}
     </section>
     ${active ? `<button class="card in-play" data-action="resume" data-id="${active.id}">
         <div class="eyebrow">In play</div>
@@ -198,6 +222,35 @@ function viewHome() {
       </button></li>`).join('')}</ul>` : '<p class="muted serif" style="font-size:18px;font-style:italic">Your first card is yet to be written.</p>'}
     <p class="footer-note">Balboa Park · San Diego</p>
   </main>`;
+}
+
+// First open on a new phone: who's playing, and what they carry
+function viewWelcome() {
+  return `
+  <header class="bar"><span></span><span class="wordmark">Dialed<i class="dot"></i></span><span></span></header>
+  <main class="pad">
+    <section class="hero">
+      <div class="eyebrow">Welcome</div>
+      <h1 class="display">Let's set up <em>your</em> yardage book.</h1>
+      <p class="muted">Takes a minute. You can change all of this later in Settings.</p>
+    </section>
+    <h2>You</h2>
+    <label class="field">First name <input data-player="name" value="${esc(S.player.name)}" placeholder="Name" autocomplete="given-name"></label>
+    <label class="field">Handicap index <input data-player="handicap" type="number" step="0.1" inputmode="decimal" value="${esc(S.player.handicap)}" placeholder="e.g. 12.4"></label>
+    <label class="field">Goal handicap <input data-player="goal" type="number" step="0.1" inputmode="decimal" value="${esc(S.player.goal)}" placeholder="e.g. 9"></label>
+    <h2>Your bag</h2>
+    <p class="muted small">Tick the clubs you carry and enter how far each one <b>carries</b> in the air (not including roll). These drive every club suggestion, including the plans in the course book.</p>
+    ${bagTable()}
+    <button class="btn primary xl" data-action="finish-welcome" style="margin-top:24px">Start using Dialed</button>
+  </main>`;
+}
+
+function bagTable() {
+  return `<table class="bag">${S.bag.map((b, i) => `<tr>
+      <td><input type="checkbox" data-bag="${i}" data-f="active" ${b.active ? 'checked' : ''}></td>
+      <td>${esc(b.label)}</td>
+      <td>${b.type === 'putter' ? '' : `<input type="number" inputmode="numeric" data-bag="${i}" data-f="yds" value="${b.yds}"> carry`}</td>
+      <td class="muted small">${S.profiles[b.id] ? `logged total ${S.profiles[b.id].median} (${S.profiles[b.id].n})` : ''}</td></tr>`).join('')}</table>`;
 }
 
 function viewSetup() {
@@ -313,7 +366,7 @@ function bookSection(n) {
   return `<section class="notes book">
     <h2>The book · No. ${n}</h2>
     <div class="legend"><span><i class="l-dead"></i>Dead</span><span><i class="l-trouble"></i>Trouble</span><span><i class="l-safe"></i>Safe</span></div>
-    ${book.notes.map((t) => `<div class="book-note">${esc(t)}</div>`).join('')}
+    ${book.notes.map((t) => `<div class="book-note">${esc(bookNote(t, book.caddy))}</div>`).join('')}
     <ul class="zone-list">${zones.map((z) => `<li><span class="k k-${z.kind}">${z.kind}</span><span>${esc(z.label)}</span></li>`).join('')}</ul>
     ${(S.course.bookNotes || []).map((t) => `<p class="muted small course-note">${esc(t)}</p>`).join('')}
   </section>`;
@@ -525,14 +578,11 @@ function viewSettings() {
   <main class="pad">
     <h2>Player</h2>
     <label class="field">Name <input data-player="name" value="${esc(S.player.name)}"></label>
-    <label class="field">Handicap <input data-player="handicap" type="number" step="0.1" inputmode="decimal" value="${esc(S.player.handicap)}"></label>
+    <label class="field">Handicap index <input data-player="handicap" type="number" step="0.1" inputmode="decimal" value="${esc(S.player.handicap)}"></label>
+    <label class="field">Goal handicap <input data-player="goal" type="number" step="0.1" inputmode="decimal" value="${esc(S.player.goal ?? '')}"></label>
     <h2>My bag</h2>
     <p class="muted small">Tick the clubs in the bag today (max 14). Yardages are <b>carry</b> and drive the club suggestions. Logged totals from your rounds appear alongside for reference.</p>
-    <table class="bag">${S.bag.map((b, i) => `<tr>
-      <td><input type="checkbox" data-bag="${i}" data-f="active" ${b.active ? 'checked' : ''}></td>
-      <td>${esc(b.label)}</td>
-      <td>${b.type === 'putter' ? '' : `<input type="number" inputmode="numeric" data-bag="${i}" data-f="yds" value="${b.yds}"> carry`}</td>
-      <td class="muted small">${S.profiles[b.id] ? `logged total ${S.profiles[b.id].median} (${S.profiles[b.id].n})` : ''}</td></tr>`).join('')}</table>
+    ${bagTable()}
     <h2>Testing</h2>
     <label class="field row-field"><input type="checkbox" data-action="toggle-sim" ${gps.state.simulate ? 'checked' : ''}> Simulate GPS (double-tap the hole drawing to place yourself)</label>
     <h2>Your data</h2>
@@ -800,6 +850,14 @@ const actions = {
       title: 'End the round here?', body: `Your ${sum.holesDone} completed hole${sum.holesDone === 1 ? '' : 's'} will be saved to your record. Any unfinished hole is left off the card.`,
       ok: `Save ${sum.holesDone} hole${sum.holesDone === 1 ? '' : 's'} & end`, run: finishRound,
     });
+  },
+  'finish-welcome': async () => {
+    if (!String(S.player.name || '').trim()) { const el = document.querySelector('[data-player="name"]'); el?.focus(); return toast('Add your first name'); }
+    await db.setMeta('player', S.player);
+    await db.setMeta('bag', S.bag);
+    S.view = 'home';
+    render();
+    window.scrollTo(0, 0);
   },
   'confirm-ok': async () => { const run = S.confirm.run; S.confirm = null; await run(); },
   'confirm-cancel': () => { S.confirm = null; render(); },

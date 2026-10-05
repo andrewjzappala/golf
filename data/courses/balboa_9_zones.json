@@ -1135,24 +1135,30 @@
   },
   "5": {
    "notes": [
-    "Hybrid off the tee, not driver: the fairway shrinks from 34 yds wide at 200 to 16 at 280.",
+    "{plan} off the tee, not driver: the fairway shrinks from 34 yds wide at 200 to 16 at 280.",
     "235\u2013240 off the tee leaves a full sand wedge.",
     "Anything right off the tee is out of bounds (playground fence).",
     "Long is dead: swale behind the green."
    ],
    "caddy": {
-    "tee_club": "3H",
-    "tee_target_yds": [
-     230,
-     245
-    ],
-    "why": "Fairway narrows to 16 yds at 280 with a bunker left; OB right. Hybrid leaves a full wedge."
+    "plan": {
+     "carry": 235,
+     "target_yds": [
+      230,
+      245
+     ],
+     "exclude": [
+      "driver"
+     ]
+    },
+    "andrew_club": "3H",
+    "why": "Fairway narrows to 16 yds at 280 with a bunker left; OB right. Laying back to ~235 leaves a full wedge."
    },
    "zones": [
     {
      "id": "h5-0",
      "kind": "safe",
-     "label": "Go zone: hybrid to the wide part",
+     "label": "Go zone: lay up to the wide part",
      "source": "manual",
      "polygon": {
       "type": "Polygon",
@@ -1803,20 +1809,25 @@
   },
   "6": {
    "notes": [
-    "Go for it: three-quarter hybrid. Being up near the green makes more birdies than laying back.",
+    "Go for it: a three-quarter {plan}. Being up near the green makes more birdies than laying back.",
     "If you miss, miss short: short-left and short-right both leave a wide green.",
     "Two bunkers right of the green, at ~220 and ~240 off the tee.",
     "Left and long-left are trees: dead."
    ],
    "caddy": {
     "preferred": "go",
+    "plan": {
+     "carry": 215,
+     "swing": "three-quarter"
+    },
+    "andrew_club": "3H",
     "options": [
      {
       "name": "go",
-      "club": "3H",
+      "carry": 215,
       "swing": "three-quarter",
       "target": "up around the green, short of center; long is dead",
-      "why": "A three-quarter hybrid allows for a mishit or wind into the face; being up near the green makes more birdies than laying back."
+      "why": "A three-quarter swing allows for a mishit or wind into the face; being up near the green makes more birdies than laying back."
      },
      {
       "name": "layup",
@@ -2269,16 +2280,18 @@
   },
   "7": {
    "notes": [
-    "5-iron off the tee. Usually finishes a little short, which is fine.",
+    "{plan} off the tee. Usually finishes a little short, which is fine.",
     "The tree ~130 out on the right overhangs the fairway. The uphill tee lie promotes a draw, but you need a cut.",
     "The only real disaster is the bunker left of the green. Leave it short of it."
    ],
    "caddy": {
-    "tee_club": "5i",
+    "plan": {
+     "carry": 210
+    },
+    "andrew_club": "5i",
     "shape": "cut",
     "why": "Tree ~130 out on the right overhangs the fairway; the uphill tee lie promotes a draw.",
-    "aim": "short or short-right of the green; never the left bunker",
-    "result": "With the right wind it's reached ~10 ft, but it usually leaves him a little short (which is fine)."
+    "aim": "short or short-right of the green; never the left bunker"
    },
    "zones": [
     {
@@ -2845,23 +2858,30 @@
   },
   "9": {
    "notes": [
-    "Hybrid off the tee leaves a wedge and is easier to control. Driver only when you're driving it well (gets to ~50 out).",
+    "{plan} off the tee leaves a wedge and is easier to control. Driver only when you're driving it well (gets to ~50 out).",
     "The fairway cants right to left past 230. Hug the right side.",
     "OB left: parking-lot fence. Eucalyptus right. A straight ball, not a long one.",
     "Around the green, long, left and right are all dead. Miss short or short-right."
    ],
    "caddy": {
-    "preferred": "3H",
+    "preferred": "layup",
+    "plan": {
+     "carry": 235,
+     "exclude": [
+      "driver"
+     ]
+    },
+    "andrew_club": "3H",
     "options": [
      {
-      "name": "hybrid",
-      "club": "3H",
+      "name": "layup",
+      "carry": 235,
       "target": "right half of the fairway (cants right to left past 230)",
       "why": "Leaves a wedge; easier to control."
      },
      {
       "name": "driver",
-      "club": "D",
+      "club_type": "driver",
       "when": "only when driving it well",
       "result": "can get to ~50 yds or closer"
      }
@@ -2872,7 +2892,7 @@
     {
      "id": "h9-0",
      "kind": "safe",
-     "label": "Hybrid zone: right half of the fairway",
+     "label": "Layup zone: right half of the fairway",
      "source": "manual",
      "polygon": {
       "type": "Polygon",

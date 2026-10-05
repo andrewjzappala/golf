@@ -4,7 +4,9 @@ import { distYd } from './geo.js';
 
 // Andrew's bag and stock CARRY yardages (given 2026-09-30). Editable in Settings.
 // The 5 wood and 4 iron swap in and out depending on the course (5W is out by default).
-export const DEFAULT_BAG = [
+// Used only on Andrew's own phone; anyone else starts from STARTER_BAG in the welcome setup.
+export const ANDREW_PLAYER = { name: 'Andrew', handicap: 7.5, goal: 2, hand: 'right', homeCourse: 'balboa-park-18' };
+export const ANDREW_BAG = [
   { id: 'D', label: 'Driver', type: 'driver', loft: 10.5, yds: 275, active: true },
   { id: '5W', label: '5 Wood', type: 'wood', loft: 18, yds: 250, active: false },
   { id: '3H', label: '3 Hybrid', type: 'hybrid', loft: 19, yds: 235, active: true },
@@ -21,6 +23,39 @@ export const DEFAULT_BAG = [
   { id: '58', label: '58° Wedge', type: 'wedge', loft: 58, yds: 95, active: true },
   { id: 'P', label: 'Putter', type: 'putter', loft: 3, yds: 0, active: true },
 ];
+
+// Starting point for a new player's bag. Typical mid-handicap carries; they edit these in the welcome setup.
+export const STARTER_BAG = [
+  { id: 'D', label: 'Driver', type: 'driver', loft: 10.5, yds: 230, active: true },
+  { id: '3W', label: '3 Wood', type: 'wood', loft: 15, yds: 210, active: true },
+  { id: '5W', label: '5 Wood', type: 'wood', loft: 18, yds: 195, active: false },
+  { id: '3H', label: '3 Hybrid', type: 'hybrid', loft: 19, yds: 190, active: false },
+  { id: '4H', label: '4 Hybrid', type: 'hybrid', loft: 22, yds: 180, active: true },
+  { id: '4i', label: '4 Iron', type: 'iron', loft: 21, yds: 175, active: false },
+  { id: '5i', label: '5 Iron', type: 'iron', loft: 24, yds: 170, active: true },
+  { id: '6i', label: '6 Iron', type: 'iron', loft: 27, yds: 160, active: true },
+  { id: '7i', label: '7 Iron', type: 'iron', loft: 31, yds: 150, active: true },
+  { id: '8i', label: '8 Iron', type: 'iron', loft: 35, yds: 140, active: true },
+  { id: '9i', label: '9 Iron', type: 'iron', loft: 39, yds: 130, active: true },
+  { id: 'PW', label: 'Pitching Wedge', type: 'wedge', loft: 44, yds: 120, active: true },
+  { id: 'AW', label: 'Gap Wedge', type: 'wedge', loft: 50, yds: 105, active: true },
+  { id: '54', label: '54° Wedge', type: 'wedge', loft: 54, yds: 90, active: true },
+  { id: '58', label: '58° Wedge', type: 'wedge', loft: 58, yds: 75, active: true },
+  { id: 'P', label: 'Putter', type: 'putter', loft: 3, yds: 0, active: true },
+];
+
+// The club in THIS player's bag that best carries a planned distance. A three-quarter swing
+// takes about 10% off a club's carry, so a "three-quarter 215" picks a club that carries ~240.
+export function clubForCarry(bag, carry, swing, exclude = []) {
+  const factor = swing === 'three-quarter' ? 0.9 : 1;
+  let best = null, bestDiff = Infinity;
+  for (const c of bag) {
+    if (!c.active || c.type === 'putter' || exclude.includes(c.type)) continue;
+    const diff = Math.abs(c.yds * factor - carry);
+    if (diff < bestDiff) { best = c.id; bestDiff = diff; }
+  }
+  return best;
+}
 
 // GPS start→end measures TOTAL distance (carry + roll), so it's shown for reference only and
 // does not replace his carry numbers. Carry vs total modelling comes with the caddy (step 5).
