@@ -25,7 +25,10 @@ export function parseNote(text, bag) {
   if (out.club && !has(out.club)) delete out.club;
 
   // Ignore conditions ("wind off the left", "breeze from the right") when reading the miss
-  const tm = t.replace(/\b(wind|breeze|gust|downwind|into the wind)\b[^,.;]*/g, ' ');
+  // ...and "right down the middle" / "right at it": there "right" means "directly", not a direction
+  const tm = t.replace(/\b(wind|breeze|gust|downwind|into the wind)\b[^,.;]*/g, ' ')
+    .replace(/\bright\s+(down|at|on|over|there|in|into|where|by|up|to|through|over)\b/g, ' $1')
+    .replace(/\bdown the middle\b/g, ' on target ');
   if (/\b(pull(ed)?|hook(ed)?)\b/.test(tm)) out.miss = 'left';
   else if (/\b(push(ed)?|slic(e|ed)|shank(ed)?)\b/.test(tm)) out.miss = 'right';
   else if (/\bleft\b/.test(tm)) out.miss = 'left';

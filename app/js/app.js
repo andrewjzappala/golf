@@ -7,8 +7,11 @@ import { recordHoleWeather, backfillPending, currentConditions } from './weather
 import { renderHoleMap, mapEventToLonLat } from './holemap.js';
 import { bearing, distYd } from './geo.js';
 import * as R from './rounds.js';
+import { analyzeAll, CATEGORIES } from './analysis.js';
+import { BASELINE, setBaselineGoal } from './baseline.js';
+import { pickDrills } from './drills.js';
 
-const APP_VERSION = '0.10.0';
+const APP_VERSION = '0.11.0';
 
 const S = {
   view: 'home',
@@ -55,6 +58,8 @@ async function boot() {
   }
   S.bag = S.bag || ANDREW_BAG.map((c) => ({ ...c }));
   S.showMap = await db.getMeta('showMap', false);
+  S.practice = await db.getMeta('practice', []);
+  S.indexHistory = await db.getMeta('indexHistory', []);
   const simulate = await db.getMeta('simulateGps', false);
   await refreshRounds();
   const active = S.rounds.find((r) => r.status === 'active');
@@ -70,7 +75,10 @@ async function boot() {
 
 async function refreshRounds() {
   S.rounds = (await db.all('rounds')).sort((a, b) => b.date.localeCompare(a.date));
-  S.profiles = buildProfiles(await db.all('shots'));
+  const shots = await db.all('shots');
+  S.profiles = buildProfiles(shots);
+  setBaselineGoal(S.player?.goal);
+  S.analysis = analyzeAll(S.rounds, shots, await db.all('holeResults'));
 }
 
 async function openRound(id) {
@@ -158,7 +166,7 @@ function bookNote(text, caddy) {
 // ---------- rendering ----------
 
 function render() {
-  const views = { home: viewHome, setup: viewSetup, hole: viewHole, summary: viewSummary, settings: viewSettings, welcome: viewWelcome };
+  const views = { home: viewHome, setup: viewSetup, hole: viewHole, summary: viewSummary, settings: viewSettings, welcome: viewWelcome, workshop: viewWorkshop };
   $app.innerHTML = views[S.view]() + (S.confirm ? confirmSheet() : '');
   if (S.view === 'hole') { renderLive(); refreshWind(); }
 }
@@ -205,7 +213,7 @@ function viewHome() {
     <section class="hero">
       <div class="eyebrow">${fmtDate(new Date().toISOString(), { weekday: 'long', month: 'long', day: 'numeric' })}</div>
       <h1 class="display">${greeting}${first ? `, <em>${esc(first)}</em>` : ''}.</h1>
-      ${S.player.handicap !== '' && S.player.handicap != null ? `<div class="goal">Index ${esc(S.player.handicap)}${S.player.goal !== '' && S.player.goal != null ? ` &nbsp;·&nbsp; the goal is <span class="hl">${esc(S.player.goal)}</span>` : ''}.</div>` : ''}
+      ${gapLine()}
     </section>
     ${active ? `<button class="card in-play" data-action="resume" data-id="${active.id}">
         <div class="eyebrow">In play</div>
@@ -213,6 +221,11 @@ function viewHome() {
         <div class="c-meta">Hole ${active.currentHole}${activeSum?.holesDone ? ` · ${R.fmtToPar(activeSum.toPar)} through ${activeSum.holesDone}` : ''}</div>
         <div class="c-cta">Return to the course &nbsp;→</div></button>`
       : `<button class="btn primary xl" data-action="go" data-view="setup">Tee it up</button>`}
+    <button class="card workshop-card" data-action="go" data-view="workshop">
+      <div class="eyebrow">The Workshop</div>
+      <div class="c-title">${S.analysis?.rounds.length ? `${esc(S.analysis.leak.label)} is the biggest leak` : 'Where your strokes go'}</div>
+      <div class="c-meta">${S.analysis?.rounds.length ? 'Strokes gained, trends, patterns and practice' : 'Play a round and your analysis starts here'}</div>
+      <div class="c-cta">Open the Workshop &nbsp;→</div></button>
     <h2>Recent rounds</h2>
     ${done.length ? `<ul class="list">${done.map((r) => `
       <li><button class="row" data-action="open-summary" data-id="${r.id}">
@@ -225,6 +238,96 @@ function viewHome() {
 }
 
 // First open on a new phone: who's playing, and what they carry
+// Home headline: distance from the goal in strokes per 18, not the (slow, noisy) index
+const goalName = () => (S.player?.goal !== '' && S.player?.goal != null ? `a ${S.player.goal}` : 'your goal');
+const signed = (v, d = 1) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(d)}`;
+function gapLine() {
+  const a = S.analysis;
+  if (!a?.rounds.length) {
+    return S.player.handicap !== '' && S.player.handicap != null
+      ? `<div class="goal">Index ${esc(S.player.handicap)}${S.player.goal !== '' && S.player.goal != null ? ` &nbsp;·&nbsp; the goal is <span class="hl">${esc(S.player.goal)}</span>` : ''}.</div>` : '';
+  }
+  const gap = -a.totalPer18;
+  return gap > 0
+    ? `<div class="goal"><span class="hl">${gap.toFixed(1)}</span> strokes from ${esc(goalName())}, per 18.</div>`
+    : `<div class="goal">Playing <span class="hl">${(-gap).toFixed(1)}</span> better than ${esc(goalName())}, per 18.</div>`;
+}
+
+function viewWorkshop() {
+  const a = S.analysis;
+  const has = a?.rounds.length;
+  const max = Math.max(1, ...CATEGORIES.map((c) => Math.abs(a?.cats[c.id] || 0)));
+  const bar = (v, scale = max) => {
+    const w = Math.min(50, (Math.abs(v) / scale) * 50);
+    return `<span class="dv"><span class="dv-zero"></span><span class="dv-bar ${v < 0 ? 'neg' : 'pos'}" style="${v < 0 ? `right:50%` : `left:50%`};width:${w.toFixed(1)}%"></span></span>`;
+  };
+  const pct = (n, d) => (d ? `${Math.round((n / d) * 100)}%` : '–');
+  const st = a?.stats || {};
+  const prox = st.girProxFt?.length ? Math.round(st.girProxFt.reduce((x, y) => x + y, 0) / st.girProxFt.length) : null;
+  const drills = pickDrills(a || { rounds: [] });
+  const log = S.practice || [];
+  const today = new Date().toISOString().slice(0, 10);
+  const doneToday = (id) => log.some((l) => l.id === id && l.date === today);
+  const last30 = (id) => log.filter((l) => l.id === id && Date.now() - new Date(l.date).getTime() < 30 * 864e5).length;
+  const catLabel = Object.fromEntries(CATEGORIES.map((c) => [c.id, c.label]));
+  const roundMax = Math.max(1, ...(a?.rounds || []).map((r) => Math.abs(r.totalPer18)));
+  const idxHist = S.indexHistory || [];
+  return `
+  <header class="bar"><button class="link" data-action="go" data-view="home">‹ Home</button><span class="wordmark">The Workshop</span><span></span></header>
+  <main class="pad workshop">
+    <section class="hero">
+      <div class="eyebrow">Gap to goal${has ? ` · ${a.rounds.length} round${a.rounds.length > 1 ? 's' : ''}` : ''}</div>
+      ${has ? `<div class="ws-big">${Math.abs(a.totalPer18).toFixed(1)}</div>
+        <div class="ws-big-sub">${a.totalPer18 < 0 ? `strokes from ${esc(goalName())}` : `strokes better than ${esc(goalName())}`}, per 18 holes</div>
+        <p class="goal">Biggest leak: <span class="hl">${esc(a.leak.label)}</span> (${signed(a.leak.v)} per 18).</p>`
+      : `<h1 class="display">Your workshop opens after your first round.</h1>`}
+    </section>
+
+    ${has ? `
+    <h2>Where the strokes go</h2>
+    <p class="muted small">Strokes gained per 18 holes against ${esc(goalName())}. Left of center costs you strokes; right of center gains them.</p>
+    <div class="dv-rows">${CATEGORIES.map((c) => `<div class="dv-row" title="${esc(c.label)}: ${signed(a.cats[c.id], 2)} strokes per 18">
+      <span class="dv-lbl">${esc(c.label)}</span>${bar(a.cats[c.id])}<span class="dv-val">${signed(a.cats[c.id])}</span></div>`).join('')}</div>
+
+    <h2>Round by round</h2>
+    <div class="dv-rows">${[...a.rounds].reverse().map((r) => `<div class="dv-row" title="Strokes gained ${signed(r.totalPer18, 2)} per 18">
+      <span class="dv-lbl"><b>${fmtDate(r.round.date, { month: 'short', day: 'numeric' })}</b> ${esc(courseMeta(r.round.courseId).short || '')} · ${r.round.totalStrokes ?? ''}</span>${bar(r.totalPer18, roundMax)}<span class="dv-val">${signed(r.totalPer18)}</span></div>`).join('')}</div>
+
+    <h2>The numbers</h2>
+    <div class="totals ws-stats">
+      <div><b>${pct(st.gir, st.girHoles)}</b><span>Greens</span></div>
+      <div><b>${pct(st.fw, st.fwHoles)}</b><span>Fairways</span></div>
+      <div><b>${pct(st.scrambleMade, st.scrambleTry)}</b><span>Up & down</span></div>
+      <div><b>${st.puttsPer18 ? st.puttsPer18.toFixed(1) : '–'}</b><span>Putts / 18</span></div>
+      <div><b>${st.threePutts ?? 0}</b><span>3-putts</span></div>
+      <div><b>${prox != null ? `${prox}′` : '–'}</b><span>1st putt on GIR</span></div>
+    </div>
+    <table class="card-table ws-putts"><tr><th>Putts</th>${a.putting.map((g) => `<th>${esc(g.label)}</th>`).join('')}</tr>
+      <tr><td>Made</td>${a.putting.map((g) => `<td>${g.tries ? `${g.made}/${g.tries}` : '–'}</td>`).join('')}</tr></table>
+
+    <h2>Patterns</h2>
+    ${a.patterns.length ? `<ul class="ws-patterns">${a.patterns.map((p) => `<li><span class="k">${esc(catLabel[p.kind] || '')}</span>${esc(p.text)}</li>`).join('')}</ul>`
+      : '<p class="muted serif" style="font-style:italic">Patterns appear after a few more rounds.</p>'}` : ''}
+
+    <h2>Practice</h2>
+    <p class="muted small">${has ? `Picked for your biggest leak${a.patterns.some((p) => p.text.includes('left')) ? ' and your left miss' : ''}.` : 'A starter set. These adapt once you have rounds logged.'} Check one off when you've done it.</p>
+    <div class="drills">${drills.map((d) => `<article class="drill">
+      <div class="drill-head"><span class="eyebrow">${esc(catLabel[d.cat])} · ${esc(d.time)}</span>
+        <button class="drill-done ${doneToday(d.id) ? 'on' : ''}" data-action="drill-done" data-id="${d.id}">${doneToday(d.id) ? 'Done today ✓' : 'Mark done'}</button></div>
+      <h3>${esc(d.name)}</h3>
+      <p>${esc(d.how)}</p>
+      <p class="muted small">${esc(d.measure)}${last30(d.id) ? ` · Done ${last30(d.id)}× in the last 30 days` : ''}</p>
+    </article>`).join('')}</div>
+
+    <h2>Handicap index</h2>
+    <p class="muted small">Your official index from GHIN. Update it when it changes; it's a slow-moving number, so strokes gained above is the better daily guide.</p>
+    <div class="idx-row"><input id="idx-input" type="number" step="0.1" inputmode="decimal" value="${esc(S.player.handicap ?? '')}" placeholder="7.5"><button class="btn" data-action="update-index">Update index</button></div>
+    ${idxHist.length ? `<ul class="idx-hist">${[...idxHist].reverse().slice(0, 8).map((h) => `<li><span>${fmtDate(h.date)}</span><b>${esc(h.index)}</b></li>`).join('')}</ul>` : ''}
+
+    <p class="muted small baseline-note"><b>${esc(BASELINE.name)}.</b> ${esc(BASELINE.note)}</p>
+  </main>`;
+}
+
 function viewWelcome() {
   return `
   <header class="bar"><span></span><span class="wordmark">Dialed<i class="dot"></i></span><span></span></header>
@@ -851,6 +954,24 @@ const actions = {
       ok: `Save ${sum.holesDone} hole${sum.holesDone === 1 ? '' : 's'} & end`, run: finishRound,
     });
   },
+  'drill-done': async (el) => {
+    const today = new Date().toISOString().slice(0, 10);
+    const log = S.practice || [];
+    const i = log.findIndex((l) => l.id === el.dataset.id && l.date === today);
+    S.practice = i >= 0 ? log.filter((_, j) => j !== i) : [...log, { id: el.dataset.id, date: today }];
+    await db.setMeta('practice', S.practice);
+    render();
+  },
+  'update-index': async () => {
+    const v = parseFloat(document.getElementById('idx-input')?.value);
+    if (!Number.isFinite(v)) return toast('Enter your index');
+    S.player.handicap = v;
+    S.indexHistory = [...(S.indexHistory || []), { date: new Date().toISOString(), index: v }];
+    await db.setMeta('player', S.player);
+    await db.setMeta('indexHistory', S.indexHistory);
+    toast(`Index updated to ${v}`);
+    render();
+  },
   'finish-welcome': async () => {
     if (!String(S.player.name || '').trim()) { const el = document.querySelector('[data-player="name"]'); el?.focus(); return toast('Add your first name'); }
     await db.setMeta('player', S.player);
@@ -966,6 +1087,7 @@ $app.addEventListener('change', async (e) => {
   if (t.dataset.player) {
     S.player[t.dataset.player] = t.type === 'number' ? parseFloat(t.value) : t.value;
     await db.setMeta('player', S.player);
+    if (t.dataset.player === 'goal' && S.view !== 'welcome') await refreshRounds();
   } else if (t.dataset.bag) {
     const club = S.bag[+t.dataset.bag];
     if (t.dataset.f === 'active') club.active = t.checked;

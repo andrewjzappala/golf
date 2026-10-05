@@ -139,7 +139,7 @@ export function holeStats(shots, holeNum, hr) {
   const list = shotsForHole(shots, holeNum);
   const tee = list.find((s) => s.kind === 'stroke');
   let fw = null;
-  if (hr.par >= 4 && tee?.end) fw = tee.end.holed || tee.end.lie === 'fairway';
+  if (hr.par >= 4 && tee?.end) fw = tee.end.holed || tee.end.lie === 'fairway' || tee.end.lie === 'green'; // driving the green counts
   // GIR: on the green (or holed) with par − 2 or fewer strokes used
   const firstOnGreen = list.findIndex((s) => s.kind === 'stroke' && s.start.lie === 'green');
   const before = firstOnGreen === -1 ? hr.strokes : firstOnGreen;
