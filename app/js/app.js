@@ -11,7 +11,7 @@ import { analyzeAll, CATEGORIES } from './analysis.js';
 import { BASELINE, setBaselineGoal } from './baseline.js';
 import { pickDrills } from './drills.js';
 
-const APP_VERSION = '0.11.0';
+const APP_VERSION = '0.12.0';
 
 const S = {
   view: 'home',
@@ -78,7 +78,9 @@ async function refreshRounds() {
   const shots = await db.all('shots');
   S.profiles = buildProfiles(shots);
   setBaselineGoal(S.player?.goal);
-  S.analysis = analyzeAll(S.rounds, shots, await db.all('holeResults'));
+  const courses = {};
+  for (const id of new Set(S.rounds.map((r) => r.courseId))) courses[id] = await loadCourse(id);
+  S.analysis = analyzeAll(S.rounds, shots, await db.all('holeResults'), courses);
 }
 
 async function openRound(id) {
@@ -305,6 +307,8 @@ function viewWorkshop() {
     <table class="card-table ws-putts"><tr><th>Putts</th>${a.putting.map((g) => `<th>${esc(g.label)}</th>`).join('')}</tr>
       <tr><td>Made</td>${a.putting.map((g) => `<td>${g.tries ? `${g.made}/${g.tries}` : '–'}</td>`).join('')}</tr></table>
 
+    ${missMap(a.misses)}
+
     <h2>Patterns</h2>
     ${a.patterns.length ? `<ul class="ws-patterns">${a.patterns.map((p) => `<li><span class="k">${esc(catLabel[p.kind] || '')}</span>${esc(p.text)}</li>`).join('')}</ul>`
       : '<p class="muted serif" style="font-style:italic">Patterns appear after a few more rounds.</p>'}` : ''}
@@ -326,6 +330,28 @@ function viewWorkshop() {
 
     <p class="muted small baseline-note"><b>${esc(BASELINE.name)}.</b> ${esc(BASELINE.note)}</p>
   </main>`;
+}
+
+// Where approaches finished when they missed the green: the target is the middle, long is up
+function missMap(m) {
+  if (!m || (!m.approachDots.length && !Object.keys(m.tee).length)) return '';
+  const R = 40; // yards shown each way from the target
+  const clamp = (v) => Math.max(-R + 2, Math.min(R - 2, v));
+  const word = { left: 'left', right: 'right', short: 'short', long: 'long', on_target: 'on target' };
+  const list = (o) => ['left', 'right', 'short', 'long', 'on_target'].filter((k) => o[k]).map((k) => `<b>${o[k]}</b> ${word[k]}`).join(' · ');
+  return `<h2>Misses</h2>
+    <p class="muted small">Where approaches finished when they missed the green, from GPS (your own notes win when you leave one). The target is the middle; long is up.</p>
+    ${m.approachDots.length ? `<div class="miss-wrap">
+      <svg class="miss-map" viewBox="${-R} ${-R} ${2 * R} ${2 * R}" role="img" aria-label="Approach misses around the target">
+        <circle class="mm-green" cx="0" cy="0" r="10"/>
+        <line class="mm-axis" x1="${-R}" y1="0" x2="${R}" y2="0"/><line class="mm-axis" x1="0" y1="${-R}" x2="0" y2="${R}"/>
+        <text class="mm-lbl" x="0" y="${-R + 5}">Long</text><text class="mm-lbl" x="0" y="${R - 2}">Short</text>
+        <text class="mm-lbl" x="${-R + 7}" y="1.5">Left</text><text class="mm-lbl" x="${R - 7}" y="1.5">Right</text>
+        ${m.approachDots.map((d) => `<circle class="mm-dot" cx="${clamp(d.side).toFixed(1)}" cy="${clamp(-d.along).toFixed(1)}" r="2.4"><title>No. ${d.hole}, ${esc(d.club)}: ${Math.abs(d.along)} ${d.along < 0 ? 'short' : 'long'}, ${Math.abs(d.side)} ${d.side < 0 ? 'left' : 'right'}</title></circle>`).join('')}
+      </svg>
+      <div class="miss-counts"><div class="eyebrow">Approach</div><p>${list(m.approach) || '–'}</p>
+        <div class="eyebrow">Off the tee</div><p>${list(m.tee) || '–'}</p></div>
+    </div>` : `<p>${list(m.tee)}</p>`}`;
 }
 
 function viewWelcome() {
@@ -433,9 +459,9 @@ function viewHole() {
     : `
       ${c.suggestion && S.selected?.hole === S.hole && S.selected.club === c.suggestion && S.selected.n === strokes.length
         ? `<div class="sel-hint"><b>${esc(c.suggestion)}</b> selected · tap it again to log the shot</div>` : ''}
-      <div class="grid clubs">${S.bag.filter((b) => b.active && b.type !== 'putter').map((b) => `
-        <button class="btn club ${c.suggestion === b.id ? 'suggest' : ''} ${flashing(`club:${b.id}`) ? 'flash' : ''}" data-action="club" data-club="${b.id}" data-club-btn="${b.id}">
-          <b>${b.id}</b><span>${clubDistance(b).yds || ''}</span></button>`).join('')}
+      <div class="grid clubs">${S.bag.filter((b) => b.active).map((b) => `
+        <button class="btn club ${b.type === 'putter' ? 'putter' : ''} ${c.suggestion === b.id ? 'suggest' : ''} ${flashing(`club:${b.id}`) ? 'flash' : ''}" data-action="club" data-club="${b.id}" data-club-btn="${b.id}">
+          <b>${b.id}</b><span>${b.type === 'putter' ? 'putt' : clubDistance(b).yds || ''}</span></button>`).join('')}
       </div>
       <div class="row-btns">
         ${strokes.length ? `<button class="btn primary" data-action="holed">Holed</button>` : ''}
@@ -512,7 +538,7 @@ async function refreshWind() {
 function shotRow(s, i) {
   if (s.kind === 'penalty') return `<li class="shot penalty" data-action="edit-shot" data-id="${s.id}"><span class="n">${i + 1}</span><span>Penalty stroke</span></li>`;
   const club = clubById(s.club);
-  const from = s.shotType === 'putt'
+  const from = s.shotType === 'putt' && s.start.lie === 'green'
     ? (s.start.bucketFt === 1 ? 'Tap-in' : `${s.start.distFt ?? '?'} ft${s.start.bucketFt === 40 ? '+' : ''}`)
     : `${s.start.distYds ?? '?'} yds · ${LIE_LABEL[s.start.lie] || '<b class="warn">lie?</b>'}`;
   const tags = [s.shotType !== 'full' && s.shotType !== 'putt' ? s.shotType : null, s.miss ? MISS_LABEL[s.miss] : null].filter(Boolean);

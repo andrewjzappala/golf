@@ -373,3 +373,16 @@ p.small { line-height: 1.5; }
 .idx-hist li { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--hair); font-size: 14px; }
 .idx-hist b { font: 400 18px/1 var(--serif); }
 .baseline-note { margin-top: 32px; line-height: 1.5; }
+
+/* Putter in the club grid */
+.btn.club.putter b { font-style: italic; }
+
+/* Miss map */
+.miss-wrap { display: grid; grid-template-columns: 1.1fr 1fr; gap: 16px; align-items: center; }
+.miss-map { width: 100%; height: auto; display: block; background: var(--m-rough); border: 1px solid var(--hair-strong); border-radius: var(--r); }
+.mm-green { fill: var(--m-green); stroke: var(--ink); stroke-opacity: .5; stroke-width: .4; }
+.mm-axis { stroke: var(--ink); stroke-opacity: .2; stroke-width: .3; }
+.mm-lbl { font: italic 4px var(--serif); fill: var(--muted); text-anchor: middle; }
+.mm-dot { fill: var(--ink); stroke: var(--paper); stroke-width: .8; }
+.miss-counts p { margin: 4px 0 14px; font: 400 18px/1.3 var(--serif); }
+.miss-counts b { font-weight: 400; font-size: 22px; }

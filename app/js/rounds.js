@@ -112,7 +112,7 @@ export async function recomputeHole(course, round, shots, holeResults, holeNum) 
 
   hr.strokes = list.length; // strokes + penalty strokes
   hr.penalties = list.length - strokes.length;
-  hr.putts = strokes.filter((s) => s.shotType === 'putt').length;
+  hr.putts = strokes.filter((s) => s.shotType === 'putt' && s.start.lie === 'green').length; // fringe putts are short game
   hr.par = hole.par;
 
   holeResults[holeNum] = hr;

@@ -3,6 +3,8 @@
 
 import { expected } from './baseline.js';
 import { shotsForHole, holeStats } from './rounds.js';
+import { distYd, bearing } from './geo.js';
+import { getHole, pointAlongHoleLine } from './course.js';
 
 export const CATEGORIES = [
   { id: 'tee', label: 'Off the tee' },
@@ -23,13 +25,38 @@ function endExp(s) {
 }
 
 function category(s, isTeeShotOnPar45) {
-  if (s.start.lie === 'green' || s.shotType === 'putt') return 'putt';
+  if (s.start.lie === 'green') return 'putt'; // a putter from the fringe counts as short game
   if (isTeeShotOnPar45) return 'tee';
   return (s.start.distYds ?? 999) > 30 ? 'approach' : 'short'; // par-3 tee shots count as approach
 }
 
 // One round → strokes gained (per shot, per category, total) and its stats.
-export function analyzeRound(round, allShots, holeResultsByHole) {
+// Which way a shot missed, from GPS, for shots that finished OFF the green (where he tapped standing
+// over the ball). Tee shots on par 4/5: left/right of the hole's line. Everything else: short/long/
+// left/right of the line to the pin. Only uses solid fixes (±15 m or better).
+const GOOD_FIX = 15;
+function autoMiss(s, next, hole, pinPt, isTee) {
+  const a = s.start?.pos, b = next?.start?.pos;
+  if (!hole || !a || !b || a.acc > GOOD_FIX || b.acc > GOOD_FIX) return null;
+  if (!s.end || s.end.holed || s.end.lie === 'green' || s.end.lie === 'penalty' || s.start.lie === 'green') return null;
+  const A = [a.lon, a.lat], B = [b.lon, b.lat];
+  const travelled = distYd(A, B);
+  if (travelled < 5) return null;
+  if (isTee) {
+    const ref = pointAlongHoleLine(hole, travelled);
+    const side = travelled * Math.sin(bearing(A, B) - bearing(A, ref));
+    return { dir: Math.abs(side) >= 12 ? (side < 0 ? 'left' : 'right') : 'on_target', side: Math.round(side), along: 0, tee: true };
+  }
+  const toPin = distYd(A, pinPt), ang = bearing(A, B) - bearing(A, pinPt);
+  const along = travelled * Math.cos(ang) - toPin, side = travelled * Math.sin(ang);
+  let dir = 'on_target';
+  if (Math.abs(side) >= 8 && Math.abs(side) >= Math.abs(along)) dir = side < 0 ? 'left' : 'right';
+  else if (along <= -8) dir = 'short';
+  else if (along >= 8) dir = 'long';
+  return { dir, side: Math.round(side), along: Math.round(along), tee: false };
+}
+
+export function analyzeRound(round, allShots, holeResultsByHole, course) {
   const shots = allShots.filter((s) => s.roundId === round.id);
   const cats = { tee: 0, approach: 0, short: 0, putt: 0 };
   const perShot = [];
@@ -54,7 +81,13 @@ export function analyzeRound(round, allShots, holeResultsByHole) {
       const sg = a - b - 1 - (s.end?.penaltyStrokes || 0);
       const cat = category(s, isTee);
       cats[cat] += sg; known += sg;
-      perShot.push({ id: s.id, hole: h, club: s.club, cat, sg, miss: s.miss, start: s.start, end: s.end, isTeeShot: s === first, par: hr.par });
+      const next = strokes[strokes.indexOf(s) + 1];
+      const hole = course && getHole(course, h);
+      const pinPt = hr.pin ? [hr.pin.lon, hr.pin.lat] : hole?.green.center;
+      const gps = s.start.lie === 'green' ? null : autoMiss(s, next, hole, pinPt, isTee);
+      // his own note/tap wins; GPS fills in when he didn't say
+      perShot.push({ id: s.id, hole: h, club: s.club, cat, sg, miss: s.miss || gps?.dir || null, missSource: s.miss ? 'you' : gps ? 'gps' : null, gps,
+        start: s.start, end: s.end, isTeeShot: s === first, par: hr.par });
     }
     if (holeStart != null) unknown += holeStart - hr.strokes - known;
 
@@ -76,11 +109,11 @@ export function analyzeRound(round, allShots, holeResultsByHole) {
 }
 
 // All finished rounds → averages per 18 holes, biggest leak, stats, patterns.
-export function analyzeAll(rounds, allShots, allHoleResults) {
+export function analyzeAll(rounds, allShots, allHoleResults, courses = {}) {
   const byRound = {};
   for (const hr of allHoleResults) (byRound[hr.roundId] ||= {})[hr.hole] = hr;
   const done = rounds.filter((r) => r.status === 'complete').sort((a, b) => a.date.localeCompare(b.date));
-  const per = done.map((r) => analyzeRound(r, allShots, byRound[r.id] || {})).filter((a) => a.holes > 0);
+  const per = done.map((r) => analyzeRound(r, allShots, byRound[r.id] || {}, courses[r.courseId])).filter((a) => a.holes > 0);
   const holes = per.reduce((n, a) => n + a.holes, 0);
   const sum = (f) => per.reduce((n, a) => n + f(a), 0);
   const per18 = (v) => (holes ? (v * 18) / holes : 0);
@@ -94,7 +127,16 @@ export function analyzeAll(rounds, allShots, allHoleResults) {
     totalPer18: per18(sum((a) => a.total)),
     cats, leak, stats: { ...st, holes, puttsPer18: per18(st.putts || 0) }, putting,
     patterns: findPatterns(shots, st, putting, per.length),
+    misses: missSummary(shots),
   };
+}
+
+// Where approaches finished when they missed the green (GPS), plus left/right counts off the tee
+function missSummary(shots) {
+  const approach = shots.filter((s) => s.cat === 'approach' && s.gps && !s.gps.tee && s.par && s.end?.lie !== 'green');
+  const tee = shots.filter((s) => s.cat === 'tee' && s.miss);
+  const count = (arr) => arr.reduce((o, s) => ({ ...o, [s.miss]: (o[s.miss] || 0) + 1 }), {});
+  return { approachDots: approach.map((s) => ({ side: s.gps.side, along: s.gps.along, club: s.club, hole: s.hole })), approach: count(approach), tee: count(tee) };
 }
 
 // Make rate by putt length (every putt, not just the first)
@@ -106,7 +148,7 @@ function puttMakes(shots) {
     { id: 'long', label: '16 ft +', test: (ft) => ft > 15 },
   ].map((g) => ({ ...g, tries: 0, made: 0 }));
   for (const s of shots) {
-    if (s.shotType !== 'putt') continue;
+    if (s.shotType !== 'putt' || s.start.lie !== 'green') continue;
     const ft = ftOf(s.start);
     const g = ft != null && groups.find((x) => x.test(ft));
     if (!g) continue;
@@ -131,6 +173,13 @@ function findPatterns(shots, st, putting, nRounds) {
   const allLeft = shots.filter((s) => s.cat !== 'putt' && s.miss === 'left').length;
   const allRight = shots.filter((s) => s.cat !== 'putt' && s.miss === 'right').length;
   if (allLeft + allRight >= 5 && allLeft >= 2 * allRight) out.push({ kind: 'approach', text: `Across all full shots, misses lean left ${allLeft} to ${allRight}.` });
+  const appMiss = shots.filter((s) => s.cat === 'approach' && s.end && !s.end.holed && s.end.lie !== 'green' && s.miss && s.miss !== 'on_target');
+  if (appMiss.length >= 5) {
+    const by = (d) => appMiss.filter((s) => s.miss === d).length;
+    const side = by('left') + by('right'), dist = by('short') + by('long');
+    if (side >= 2 * Math.max(1, dist)) out.push({ kind: 'approach', text: `Missed greens are mostly to the side: ${side} of ${appMiss.length} went left or right (${by('left')} left, ${by('right')} right); distance control is holding up.` });
+    else if (dist >= 2 * Math.max(1, side)) out.push({ kind: 'approach', text: `Missed greens are mostly a distance problem: ${by('short')} short, ${by('long')} long.` });
+  }
 
   const par3 = shots.filter((s) => s.isTeeShot && s.par === 3);
   const par3Gir = par3.filter((s) => s.end?.lie === 'green' || s.end?.holed).length;
