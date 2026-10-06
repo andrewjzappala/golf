@@ -7,11 +7,11 @@ import { recordHoleWeather, backfillPending, currentConditions } from './weather
 import { renderHoleMap, mapEventToLonLat } from './holemap.js';
 import { bearing, distYd } from './geo.js';
 import * as R from './rounds.js';
-import { analyzeAll, CATEGORIES } from './analysis.js';
+import { analyzeAll, CATEGORIES, GREENS } from './analysis.js';
 import { BASELINE, setBaselineGoal } from './baseline.js';
 import { pickDrills } from './drills.js';
 
-const APP_VERSION = '0.12.0';
+const APP_VERSION = '0.13.0';
 
 const S = {
   view: 'home',
@@ -305,7 +305,9 @@ function viewWorkshop() {
       <div><b>${prox != null ? `${prox}′` : '–'}</b><span>1st putt on GIR</span></div>
     </div>
     <table class="card-table ws-putts"><tr><th>Putts</th>${a.putting.map((g) => `<th>${esc(g.label)}</th>`).join('')}</tr>
-      <tr><td>Made</td>${a.putting.map((g) => `<td>${g.tries ? `${g.made}/${g.tries}` : '–'}</td>`).join('')}</tr></table>
+      <tr><td>All</td>${a.putting.map((g) => `<td>${g.tries ? `${g.made}/${g.tries}` : '–'}</td>`).join('')}</tr>
+      ${a.puttingByGreens.length > 1 || a.puttingByGreens[0]?.id !== 'untagged' ? a.puttingByGreens.map((c) => `<tr><td>${esc(c.label)}</td>${c.makes.map((g) => `<td>${g.tries ? `${g.made}/${g.tries}` : '–'}</td>`).join('')}</tr>`).join('') : ''}</table>
+    ${puttingByGreens(a)}
 
     ${missMap(a.misses)}
 
@@ -330,6 +332,15 @@ function viewWorkshop() {
 
     <p class="muted small baseline-note"><b>${esc(BASELINE.name)}.</b> ${esc(BASELINE.note)}</p>
   </main>`;
+}
+
+// Putting strokes gained split by green conditions, so punched greens don't hide real putting skill
+function puttingByGreens(a) {
+  const rows = a.puttingByGreens.filter((c) => c.id !== 'untagged');
+  if (!rows.length) return '<p class="muted small">Tag each round\'s greens on its scorecard (Normal, Punched, Slow, Fast) to see putting by conditions.</p>';
+  const normal = rows.find((c) => c.id === 'normal');
+  return `<div class="greens-split">${rows.map((c) => `<div><b>${signed(c.sgPer18)}</b><span>Putting on ${esc(c.label.toLowerCase())} greens · ${c.rounds} round${c.rounds > 1 ? 's' : ''}</span></div>`).join('')}</div>
+    ${normal ? '' : `<p class="muted small">No rounds on normal greens yet. Once there are, this shows your putting without the aeration noise.</p>`}`;
 }
 
 // Where approaches finished when they missed the green: the target is the middle, long is up
@@ -665,6 +676,8 @@ function viewSummary() {
     <div class="sc-head"><div class="eyebrow">${esc(courseMeta(round.courseId).name)}</div>
       <h1 class="display">${esc(courseMeta(round.courseId).sub)}</h1>
       <div class="muted">${fmtDate(round.date, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} · ${esc(round.teeLabel)} tees</div></div>
+    <div class="greens-tag"><span class="lbl">Greens</span>
+      <div class="chips">${GREENS.filter((g) => g.id !== 'untagged').map((g) => `<button class="chip ${round.conditions?.greens === g.id ? 'on' : ''}" data-action="tag-greens" data-id="${round.id}" data-v="${g.id}">${g.label}</button>`).join('')}</div></div>
     <div class="totals">
       <div><b>${sum.strokes || '–'}</b><span>Score</span></div>
       <div><b>${sum.holesDone ? R.fmtToPar(sum.toPar) : '–'}</b><span>${sum.holesDone && sum.holesDone < round.holes.length ? `Thru ${sum.holesDone}` : 'To par'}</span></div>
@@ -979,6 +992,15 @@ const actions = {
       title: 'End the round here?', body: `Your ${sum.holesDone} completed hole${sum.holesDone === 1 ? '' : 's'} will be saved to your record. Any unfinished hole is left off the card.`,
       ok: `Save ${sum.holesDone} hole${sum.holesDone === 1 ? '' : 's'} & end`, run: finishRound,
     });
+  },
+  'tag-greens': async (el) => {
+    const id = el.dataset.id, v = el.dataset.v;
+    const round = (S.round?.id === id && S.round) || S.rounds.find((r) => r.id === id) || (await db.get('rounds', id));
+    round.conditions = { ...(round.conditions || {}), greens: round.conditions?.greens === v ? null : v };
+    await db.put('rounds', round);
+    if (S.round?.id === id) S.round.conditions = round.conditions;
+    await refreshRounds();
+    render();
   },
   'drill-done': async (el) => {
     const today = new Date().toISOString().slice(0, 10);

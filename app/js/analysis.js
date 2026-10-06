@@ -6,6 +6,15 @@ import { shotsForHole, holeStats } from './rounds.js';
 import { distYd, bearing } from './geo.js';
 import { getHole, pointAlongHoleLine } from './course.js';
 
+// Green conditions a round can be tagged with (one tap on the scorecard)
+export const GREENS = [
+  { id: 'normal', label: 'Normal' },
+  { id: 'punched', label: 'Punched' },
+  { id: 'slow', label: 'Slow' },
+  { id: 'fast', label: 'Fast' },
+  { id: 'untagged', label: 'Not tagged' },
+];
+
 export const CATEGORIES = [
   { id: 'tee', label: 'Off the tee' },
   { id: 'approach', label: 'Approach' },
@@ -102,7 +111,7 @@ export function analyzeRound(round, allShots, holeResultsByHole, course) {
   }
   const per18 = (v) => (holes ? (v * 18) / holes : 0);
   return {
-    round, holes, total, unknown, cats, perShot, stats: st,
+    round, holes, total, unknown, cats, perShot, stats: st, greens: round.conditions?.greens || null,
     totalPer18: per18(total),
     catsPer18: Object.fromEntries(Object.entries(cats).map(([k, v]) => [k, per18(v)])),
   };
@@ -126,6 +135,13 @@ export function analyzeAll(rounds, allShots, allHoleResults, courses = {}) {
     rounds: per, holes,
     totalPer18: per18(sum((a) => a.total)),
     cats, leak, stats: { ...st, holes, puttsPer18: per18(st.putts || 0) }, putting,
+    puttingByGreens: GREENS.map((g) => {
+      const rs = per.filter((a) => (a.greens || 'untagged') === g.id);
+      const h = rs.reduce((n, a) => n + a.holes, 0);
+      const ids = new Set(rs.map((a) => a.round.id));
+      return { ...g, rounds: rs.length, holes: h, sgPer18: h ? (rs.reduce((n, a) => n + a.cats.putt, 0) * 18) / h : null,
+        makes: puttMakes(allShots.filter((s) => ids.has(s.roundId))) };
+    }).filter((g) => g.rounds),
     patterns: findPatterns(shots, st, putting, per.length),
     misses: missSummary(shots),
   };
