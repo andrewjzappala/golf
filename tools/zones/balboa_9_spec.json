@@ -254,10 +254,10 @@
           ]
         }
       ],
-      "tee_offset": 32,
+      "tee_offset": 0,
       "answers": [
-        "Tee yardages are from the back tee. Map tee is ~32 yds ahead (card 395 vs measured 363), so tee_offset 32 until the back tee is mapped.",
-        "Long of the green: dead (2026-10-01)."
+        "Long of the green: dead (2026-10-01).",
+        "Hole plays about 370 from the tee Andrew uses, which is the mapped tee (GPS on 4 rounds: 362-368 to the pin). Card 395 is wrong or from an unused tee, so tee_offset is 0 (2026-10-07)."
       ]
     },
     "4": {

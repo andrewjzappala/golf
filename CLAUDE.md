@@ -133,8 +133,8 @@ Data sources: geometry from OpenStreetMap (ODbL, attribution required); scorecar
 ### Verified and open yardage issues
 - **18-hole, hole 6**: plays **220** from a new back tee added last year; the printed card still says 210. Confirmed by Andrew.
 - **18-hole, hole 15**: back tee is **325 following the dogleg**. Confirmed; the map is correct.
-- **Still flagged:** 18-hole holes 7 (450 vs 463 on the card), 17 (187 vs 198), and 18 (298 vs 316); 9-hole holes 3, 4, 5, and 6. Likely unmapped back tees. Andrew will check these on the course.
-- **9-hole, hole 3:** Andrew's tee distances are from the back tee, which sits about 32 yds behind the mapped tee (card 395 vs 363). The zone spec uses `tee_offset: 32` for now. When the real back tee is mapped, set `tee_offset` to 0 and re-run `build_zones.py`.
+- **Still flagged:** 18-hole holes 7 (450 vs 463 on the card), 17 (187 vs 198), and 18 (298 vs 316); 9-hole holes 4, 5, and 6. Likely unmapped back tees. Andrew will check these on the course.
+- **9-hole, hole 3: resolved (2026-10-07).** It plays about 370 from the tee Andrew uses, which is the mapped tee (GPS on 4 rounds put him 362–368 from the pin). The card's 395 is wrong or from an unused tee. `tee_offset` is 0.
 - He plays the back tees on both courses.
 
 ## Build plan (in order)
