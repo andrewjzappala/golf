@@ -15,6 +15,14 @@ export const GREENS = [
   { id: 'untagged', label: 'Not tagged' },
 ];
 
+// Turf conditions (mostly about dew on early tee times), for splitting the short game
+export const TURF = [
+  { id: 'dry', label: 'Dry' },
+  { id: 'dewy', label: 'Dewy' },
+  { id: 'wet', label: 'Wet' },
+  { id: 'untagged', label: 'Not tagged' },
+];
+
 export const CATEGORIES = [
   { id: 'tee', label: 'Off the tee' },
   { id: 'approach', label: 'Approach' },
@@ -25,6 +33,20 @@ export const CATEGORIES = [
 const ftOf = (o) => o?.distFt ?? (o?.distYds != null ? o.distYds * 3 : null);
 const startExp = (s, isTee) =>
   s.start.lie === 'green' ? expected('green', ftOf(s.start)) : expected(s.start.lie, s.start.distYds, { isTee });
+// Where a shot ended = where the next stroke started (penalty strokes in between are counted).
+// Always derived here rather than trusting the stored copy, so corrections can never go stale.
+function deriveEnd(list, s, hr) {
+  let j = list.indexOf(s) + 1, pen = 0;
+  while (j < list.length && list[j].kind === 'penalty') { pen++; j++; }
+  const next = list[j];
+  if (next) {
+    const st = next.start;
+    return { lie: pen ? 'penalty' : st.lie, nextLie: st.lie, distYds: st.distYds ?? null,
+      distFt: st.bucketFt ?? st.distFt ?? null, pos: st.pos || null, penaltyStrokes: pen, holed: false };
+  }
+  return hr?.holed ? { lie: 'holed', distYds: 0, distFt: 0, penaltyStrokes: pen, holed: true } : null;
+}
+
 function endExp(s) {
   const e = s.end;
   if (!e) return null;
@@ -83,20 +105,21 @@ export function analyzeRound(round, allShots, holeResultsByHole, course) {
     const holeStart = startExp(first, true);
     if (holeStart != null) total += holeStart - hr.strokes; // exact for the hole, whatever we know per shot
     let known = 0;
-    for (const s of strokes) {
-      const isTee = s === first && hr.par >= 4;
-      const a = startExp(s, s === first), b = endExp(s);
+    for (const stored of strokes) {
+      const s = { ...stored, end: deriveEnd(list, stored, hr) };
+      const isTee = stored === first && hr.par >= 4;
+      const a = startExp(s, stored === first), b = endExp(s);
       if (a == null || b == null) continue;
       const sg = a - b - 1 - (s.end?.penaltyStrokes || 0);
       const cat = category(s, isTee);
       cats[cat] += sg; known += sg;
-      const next = strokes[strokes.indexOf(s) + 1];
+      const next = strokes[strokes.indexOf(stored) + 1];
       const hole = course && getHole(course, h);
       const pinPt = hr.pin ? [hr.pin.lon, hr.pin.lat] : hole?.green.center;
       const gps = s.start.lie === 'green' ? null : autoMiss(s, next, hole, pinPt, isTee);
       // his own note/tap wins; GPS fills in when he didn't say
       perShot.push({ id: s.id, hole: h, club: s.club, cat, sg, miss: s.miss || gps?.dir || null, missSource: s.miss ? 'you' : gps ? 'gps' : null, gps,
-        start: s.start, end: s.end, isTeeShot: s === first, par: hr.par });
+        start: s.start, end: s.end, isTeeShot: stored === first, par: hr.par });
     }
     if (holeStart != null) unknown += holeStart - hr.strokes - known;
 
@@ -111,7 +134,7 @@ export function analyzeRound(round, allShots, holeResultsByHole, course) {
   }
   const per18 = (v) => (holes ? (v * 18) / holes : 0);
   return {
-    round, holes, total, unknown, cats, perShot, stats: st, greens: round.conditions?.greens || null,
+    round, holes, total, unknown, cats, perShot, stats: st, greens: round.conditions?.greens || null, turf: round.conditions?.turf || null,
     totalPer18: per18(total),
     catsPer18: Object.fromEntries(Object.entries(cats).map(([k, v]) => [k, per18(v)])),
   };
@@ -135,6 +158,11 @@ export function analyzeAll(rounds, allShots, allHoleResults, courses = {}) {
     rounds: per, holes,
     totalPer18: per18(sum((a) => a.total)),
     cats, leak, stats: { ...st, holes, puttsPer18: per18(st.putts || 0) }, putting,
+    shortByTurf: TURF.map((g) => {
+      const rs = per.filter((a) => (a.turf || 'untagged') === g.id);
+      const h = rs.reduce((n, a) => n + a.holes, 0);
+      return { ...g, rounds: rs.length, holes: h, sgPer18: h ? (rs.reduce((n, a) => n + a.cats.short, 0) * 18) / h : null };
+    }).filter((g) => g.rounds),
     puttingByGreens: GREENS.map((g) => {
       const rs = per.filter((a) => (a.greens || 'untagged') === g.id);
       const h = rs.reduce((n, a) => n + a.holes, 0);

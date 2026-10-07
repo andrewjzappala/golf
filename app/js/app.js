@@ -7,11 +7,11 @@ import { recordHoleWeather, backfillPending, currentConditions } from './weather
 import { renderHoleMap, mapEventToLonLat } from './holemap.js';
 import { bearing, distYd } from './geo.js';
 import * as R from './rounds.js';
-import { analyzeAll, CATEGORIES, GREENS } from './analysis.js';
+import { analyzeAll, CATEGORIES, GREENS, TURF } from './analysis.js';
 import { BASELINE, setBaselineGoal } from './baseline.js';
 import { pickDrills } from './drills.js';
 
-const APP_VERSION = '0.13.0';
+const APP_VERSION = '0.14.0';
 
 const S = {
   view: 'home',
@@ -149,6 +149,16 @@ function holeCtx() {
 }
 
 // The book stores the SHOT (a carry, maybe a three-quarter swing); each player's own bag decides the club
+// Chipping from just off the green without leaving the putting screen: wedges + putter (fringe putt).
+// Same rule as the club grid: first tap selects (yellow), second tap logs.
+function chipRow(c) {
+  const sel = S.selected?.hole === S.hole && S.selected.n === c.strokes.length ? S.selected.club : null;
+  const clubs = S.bag.filter((b) => b.active && (b.type === 'wedge' || b.type === 'putter'))
+    .sort((a, b) => (a.type === 'putter') - (b.type === 'putter') || b.loft - a.loft);
+  return `<div class="lbl">${sel ? `<b class="sel-tag">${esc(sel)}</b> selected · tap it again to log the shot` : 'Off the green? Chip with'}</div>
+    <div class="chips chip-row">${clubs.map((b) => `<button class="chip ${sel === b.id ? 'on-yellow' : ''} ${flashing(`club:${b.id}`) ? 'flash' : ''}" data-action="club" data-club="${b.id}" data-offgreen="1">${b.type === 'putter' ? 'Putter' : esc(b.id)}</button>`).join('')}</div>`;
+}
+
 function bookTeeClub(caddy) {
   if (!caddy) return null;
   if (caddy.plan?.carry) return clubForCarry(S.bag, caddy.plan.carry, caddy.plan.swing, caddy.plan.exclude);
@@ -308,6 +318,7 @@ function viewWorkshop() {
       <tr><td>All</td>${a.putting.map((g) => `<td>${g.tries ? `${g.made}/${g.tries}` : '–'}</td>`).join('')}</tr>
       ${a.puttingByGreens.length > 1 || a.puttingByGreens[0]?.id !== 'untagged' ? a.puttingByGreens.map((c) => `<tr><td>${esc(c.label)}</td>${c.makes.map((g) => `<td>${g.tries ? `${g.made}/${g.tries}` : '–'}</td>`).join('')}</tr>`).join('') : ''}</table>
     ${puttingByGreens(a)}
+    ${shortByTurf(a)}
 
     ${missMap(a.misses)}
 
@@ -341,6 +352,13 @@ function puttingByGreens(a) {
   const normal = rows.find((c) => c.id === 'normal');
   return `<div class="greens-split">${rows.map((c) => `<div><b>${signed(c.sgPer18)}</b><span>Putting on ${esc(c.label.toLowerCase())} greens · ${c.rounds} round${c.rounds > 1 ? 's' : ''}</span></div>`).join('')}</div>
     ${normal ? '' : `<p class="muted small">No rounds on normal greens yet. Once there are, this shows your putting without the aeration noise.</p>`}`;
+}
+
+// Short game split by turf, so a dewy 6:54 tee time doesn't read as a short-game collapse
+function shortByTurf(a) {
+  const rows = a.shortByTurf.filter((c) => c.id !== 'untagged');
+  if (!rows.length) return '';
+  return `<div class="greens-split">${rows.map((c) => `<div><b>${signed(c.sgPer18)}</b><span>Around the green on ${esc(c.label.toLowerCase())} turf · ${c.rounds} round${c.rounds > 1 ? 's' : ''}</span></div>`).join('')}</div>`;
 }
 
 // Where approaches finished when they missed the green: the target is the middle, long is up
@@ -463,9 +481,10 @@ function viewHole() {
           ? `<button class="btn tapin ${flashing('putt:1') ? 'flash' : ''}" data-action="tapin">Tap-in</button>`
           : `<button class="btn ${flashing(`putt:${b}`) ? 'flash' : ''}" data-action="putt" data-ft="${b}">${R.puttLabel(b)}</button>`).join('')}</div>
       ${strokes.length ? `<button class="btn primary holed-wide" data-action="holed">Holed</button>` : ''}
+      ${chipRow(c)}
       <div class="row-btns">
         ${!c.hr?.pin ? `<button class="btn ghost" data-action="set-pin">Pin is here</button>` : ''}
-        <button class="btn ghost" data-action="show-clubs">Not on green</button>
+        <button class="btn ghost" data-action="show-clubs">All clubs</button>
       </div>`
     : `
       ${c.suggestion && S.selected?.hole === S.hole && S.selected.club === c.suggestion && S.selected.n === strokes.length
@@ -677,7 +696,9 @@ function viewSummary() {
       <h1 class="display">${esc(courseMeta(round.courseId).sub)}</h1>
       <div class="muted">${fmtDate(round.date, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} · ${esc(round.teeLabel)} tees</div></div>
     <div class="greens-tag"><span class="lbl">Greens</span>
-      <div class="chips">${GREENS.filter((g) => g.id !== 'untagged').map((g) => `<button class="chip ${round.conditions?.greens === g.id ? 'on' : ''}" data-action="tag-greens" data-id="${round.id}" data-v="${g.id}">${g.label}</button>`).join('')}</div></div>
+      <div class="chips">${GREENS.filter((g) => g.id !== 'untagged').map((g) => `<button class="chip ${round.conditions?.greens === g.id ? 'on' : ''}" data-action="tag-greens" data-id="${round.id}" data-v="${g.id}">${g.label}</button>`).join('')}</div>
+      <span class="lbl">Turf</span>
+      <div class="chips">${TURF.filter((g) => g.id !== 'untagged').map((g) => `<button class="chip ${round.conditions?.turf === g.id ? 'on' : ''}" data-action="tag-greens" data-k="turf" data-id="${round.id}" data-v="${g.id}">${g.label}</button>`).join('')}</div></div>
     <div class="totals">
       <div><b>${sum.strokes || '–'}</b><span>Score</span></div>
       <div><b>${sum.holesDone ? R.fmtToPar(sum.toPar) : '–'}</b><span>${sum.holesDone && sum.holesDone < round.holes.length ? `Thru ${sum.holesDone}` : 'To par'}</span></div>
@@ -741,7 +762,7 @@ async function recompute(holeNum = S.hole) {
   await R.recomputeHole(S.course, S.round, S.shots, S.holeResults, holeNum);
 }
 
-async function addShot({ club, shotType, bucketFt }) {
+async function addShot({ club, shotType, bucketFt, offGreen = false }) {
   const c = holeCtx();
   const seq = c.shots.length ? c.shots[c.shots.length - 1].seq + 1 : 1;
   const first = c.strokes.length === 0;
@@ -753,6 +774,9 @@ async function addShot({ club, shotType, bucketFt }) {
     lieNeedsConfirm: !first && c.liveLie.lie === 'rough' && !c.liveLie.trusted && shotType !== 'putt',
   };
   if (bucketFt != null) { shot.start.bucketFt = bucketFt; shot.start.lie = 'green'; }
+  // GPS on the fringe often reads "green"; a wedge, or a putter from the chip row, is off the green
+  const fringe = (lie) => (bucketFt == null && lie === 'green' && (offGreen || clubObj?.type !== 'putter') ? 'fairway' : lie);
+  shot.start.lie = fringe(shot.start.lie);
   shot.shotType = shotType || inferShotType(clubObj, shot.start.lie, c.dist?.pin);
   S.shots.push(shot);
   S.target = null;
@@ -769,7 +793,7 @@ async function addShot({ club, shotType, bucketFt }) {
       shot.start.pos = pos;
       if (pos && !first && bucketFt == null) {
         const det = detectLie(S.course, shot.hole, [pos.lon, pos.lat]);
-        if (det.lie) { shot.start.lie = det.lie; shot.lieNeedsConfirm = det.lie === 'rough' && !det.trusted; }
+        if (det.lie) { shot.start.lie = fringe(det.lie); shot.lieNeedsConfirm = det.lie === 'rough' && !det.trusted; }
       }
       await recompute(shot.hole);
       // Don't redraw under an open edit sheet (it would wipe a note being typed)
@@ -852,7 +876,10 @@ const actions = {
   club: (el) => {
     const id = el.dataset.club;
     const c = holeCtx();
-    if (c.suggestion !== id) {
+    const sel = S.selected?.hole === S.hole && S.selected.n === c.strokes.length ? S.selected.club : null;
+    const offGreen = el.dataset.offgreen === '1' || c.puttMode;
+    const yellow = offGreen ? sel === id : c.suggestion === id;
+    if (!yellow) {
       // first tap on a different club: make it the yellow one and show where it carries
       S.selected = { hole: S.hole, n: c.strokes.length, club: id };
       S.target = null;
@@ -861,7 +888,7 @@ const actions = {
     if (Date.now() - lastClubLog < 900) return; // accidental double tap on the yellow club
     lastClubLog = Date.now();
     S.flash = { key: `club:${id}`, until: Date.now() + 900 };
-    addShot({ club: id });
+    addShot({ club: id, offGreen });
   },
   tapin: async () => {
     S.flash = { key: 'putt:1', until: Date.now() + 900 };
@@ -927,6 +954,12 @@ const actions = {
     else if (f === 'miss') s.miss = s.miss === v ? null : v;
     else s[f] = v;
     if (f === 'club' && clubById(v)?.type === 'putter' && s.start.lie === 'green') s.shotType = 'putt';
+    if (f === 'club' && clubById(v)?.type !== 'putter' && (s.start.bucketFt != null || s.shotType === 'putt')) {
+      // it was logged as a putt but it's a chip: drop the putt distance; the GPS spot gives the yards
+      delete s.start.bucketFt; delete s.start.distFt;
+      if (s.start.lie === 'green') s.start.lie = 'fairway';
+      s.shotType = 'chip';
+    }
     await recompute(); render();
   },
   'delete-shot': async () => {
@@ -994,9 +1027,9 @@ const actions = {
     });
   },
   'tag-greens': async (el) => {
-    const id = el.dataset.id, v = el.dataset.v;
+    const id = el.dataset.id, v = el.dataset.v, k = el.dataset.k || 'greens';
     const round = (S.round?.id === id && S.round) || S.rounds.find((r) => r.id === id) || (await db.get('rounds', id));
-    round.conditions = { ...(round.conditions || {}), greens: round.conditions?.greens === v ? null : v };
+    round.conditions = { ...(round.conditions || {}), [k]: round.conditions?.[k] === v ? null : v };
     await db.put('rounds', round);
     if (S.round?.id === id) S.round.conditions = round.conditions;
     await refreshRounds();

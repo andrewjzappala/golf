@@ -139,7 +139,10 @@ export function holeStats(shots, holeNum, hr) {
   const list = shotsForHole(shots, holeNum);
   const tee = list.find((s) => s.kind === 'stroke');
   let fw = null;
-  if (hr.par >= 4 && tee?.end) fw = tee.end.holed || tee.end.lie === 'fairway' || tee.end.lie === 'green'; // driving the green counts
+  // where the tee ball finished = where the next stroke started (stored copies can be stale after edits)
+  const afterTee = list.slice(list.indexOf(tee) + 1).find((s) => s.kind === 'stroke');
+  const teeEnd = afterTee ? { lie: afterTee.start.lie } : tee?.end;
+  if (hr.par >= 4 && tee && teeEnd) fw = !!teeEnd.holed || teeEnd.lie === 'fairway' || teeEnd.lie === 'green' || (!afterTee && !!hr.holed); // driving the green counts
   if (tee?.fairwayHit === false) fw = false; // e.g. a clean lie on another hole's tee box is still a missed fairway
   // GIR: on the green (or holed) with par − 2 or fewer strokes used
   const firstOnGreen = list.findIndex((s) => s.kind === 'stroke' && s.start.lie === 'green');
