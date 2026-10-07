@@ -169,6 +169,14 @@ The improvement section. Handicap moved out of the spotlight: GHIN has no public
 - After 3 rounds (Oct 1, 4, 6, all Balboa 9): 3.7 from a 2 per 18. Approach −1.9, putting −1.5, tee −1.6, around the green +1.2. Par 3 greens 5/12. 9–15 ft putts 0/11. GPS plus notes: 6 of 9 tee misses went left.
 - Andrew's first two rounds: 3.5 strokes from a 2 per 18. Tee −2.1, approach −0.8, around the green +0.9, putting −1.5. Left miss on 3 of 4 tee misses; 0 of 8 putts made from 9–15 ft.
 
+## Steps 3–5 (2026-10-07)
+
+- **Step 3 done:** 5 real rounds logged (Oct 1, 4, 6, 7 am, 7 pm, all Balboa 9, all with the **half set**). All five plus every correction are in `rounds/rounds-all-5.json` (git-ignored, personal data).
+- **Bags:** each round records `bagMode` ('full' | 'half') and `bag` (club ids). The half set (default `DEFAULT_HALF_SET`: D, 3H, 5i, 7i, 9i, AW, 50, 54, P, editable in Settings) is chosen on the New round screen. `inPlay()` limits the club grid, chip row, suggestions, book plans and the caddy to the clubs carried. Andrew plays the half set in the heat and goes back to the full bag when it cools (mid-Oct 2026).
+- **Step 4, post-round report** (`viewReport`): shown after *Finish round* and from any finished scorecard. It has score, strokes gained over the round's holes (and per 18), "best round so far", categories with ticks for his average over the same number of holes, best 3 and costliest 3 shots, and the numbers.
+- **Step 5, AI caddy v1** (`js/caddy.js`, PROVISIONAL tuning): simulates 160 landing points per club and aim option. Dispersion is about 6% of carry sideways (7.5% off the tee) and 4.5% plus 2 yds long. Heat adds about 0.12% per °F above 70. Wind: into costs 1% per mph, helping adds 0.5% per mph, and crosswind drifts 0.45 yd per mph per 100 yds. Each landing point is scored with the goal baseline plus book penalties (dead +0.9, trouble +0.3, water +1). Book rules apply (`max_landing: pin` penalises finishing past the hole; `between_clubs: down`). Tee shots use **his logged tee distances blended with stock** (stock weighted like 4 shots), full and ¾ swings. Approaches use stock carries, with partial wedges below the shortest wedge. Player bias comes from Workshop miss data. The hole screen shows a one-line strip; tap it for the reasoning, the next-best options, and the comparison with the book plan. **Use this** selects the club and drops the target on the aim point (`S.target.club` keeps the pick).
+- First caddy reads (Oct 7 conditions): No. 3 driver aimed right of the line; No. 5 driver over the 3H plan by 0.06 (close); No. 6 a 7i layup over the ¾ 3H plan by 0.10 (his go-for-it results so far: 1 bogey, 4 pars, no birdies). Tune with Andrew's feedback.
+
 ## Open tasks and questions
 
 - Find and document the source of a low-handicap/scratch strokes-gained baseline table (a provisional scaled-Tour baseline is in use; see The Workshop).

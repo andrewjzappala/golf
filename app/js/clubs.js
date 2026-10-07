@@ -6,6 +6,9 @@ import { distYd } from './geo.js';
 // The 5 wood and 4 iron swap in and out depending on the course (5W is out by default).
 // Used only on Andrew's own phone; anyone else starts from STARTER_BAG in the welcome setup.
 export const ANDREW_PLAYER = { name: 'Andrew', handicap: 7.5, goal: 2, hand: 'right', homeCourse: 'balboa-park-18' };
+// Andrew's "sporty half set" (Oct 2026 hot-weather practice rounds), editable in Settings
+export const DEFAULT_HALF_SET = ['D', '3H', '5i', '7i', '9i', 'AW', '50', '54', 'P'];
+
 export const ANDREW_BAG = [
   { id: 'D', label: 'Driver', type: 'driver', loft: 10.5, yds: 275, active: true },
   { id: '5W', label: '5 Wood', type: 'wood', loft: 18, yds: 250, active: false },

@@ -1,7 +1,7 @@
 import * as db from './db.js';
 import * as gps from './gps.js';
 import { COURSES, TEE_SETS, loadCourse, getHole, teeBox, detectLie, distancesFrom, holeBook, zoneAt, pointAlongHoleLine } from './course.js';
-import { ANDREW_BAG, ANDREW_PLAYER, STARTER_BAG, clubForCarry, buildProfiles, suggestClub, inferShotType, clubDistance } from './clubs.js';
+import { ANDREW_BAG, ANDREW_PLAYER, STARTER_BAG, DEFAULT_HALF_SET, clubForCarry, buildProfiles, suggestClub, inferShotType, clubDistance } from './clubs.js';
 import { parseNote, speechAvailable, listen } from './voice.js';
 import { recordHoleWeather, backfillPending, currentConditions } from './weather.js';
 import { renderHoleMap, mapEventToLonLat } from './holemap.js';
@@ -10,8 +10,9 @@ import * as R from './rounds.js';
 import { analyzeAll, CATEGORIES, GREENS, TURF } from './analysis.js';
 import { BASELINE, setBaselineGoal } from './baseline.js';
 import { pickDrills } from './drills.js';
+import { advise } from './caddy.js';
 
-const APP_VERSION = '0.14.0';
+const APP_VERSION = '0.16.0';
 
 const S = {
   view: 'home',
@@ -27,7 +28,7 @@ const S = {
   showMap: false,
   editShotId: null,
   noteShotId: null, // the quick note card
-  setup: { courseId: 'balboa-park-18', teeIdx: 0, mode: 'all' },
+  setup: { courseId: 'balboa-park-18', teeIdx: 0, mode: 'all', bagMode: 'full' },
   summaryRoundId: null,
 };
 
@@ -36,6 +37,8 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<
 const LIE_LABEL = { tee: 'Tee', fairway: 'Fairway', rough: 'Rough', sand: 'Sand', green: 'Green', recovery: 'Recovery', penalty: 'Penalty', holed: 'Holed' };
 const MISS_LABEL = { on_target: 'On target', left: 'Left', right: 'Right', short: 'Short', long: 'Long' };
 const clubById = (id) => S.bag.find((c) => c.id === id);
+// The clubs actually carried in the round being played (full bag, or the half set)
+const inPlay = () => S.bag.filter((b) => b.active && (!S.round?.bag || S.round.bag.includes(b.id)));
 
 // ---------- boot ----------
 
@@ -59,6 +62,8 @@ async function boot() {
   S.bag = S.bag || ANDREW_BAG.map((c) => ({ ...c }));
   S.showMap = await db.getMeta('showMap', false);
   S.practice = await db.getMeta('practice', []);
+  S.halfSet = await db.getMeta('halfSet', DEFAULT_HALF_SET);
+  S.setup.bagMode = await db.getMeta('lastBagMode', 'full');
   S.indexHistory = await db.getMeta('indexHistory', []);
   const simulate = await db.getMeta('simulateGps', false);
   await refreshRounds();
@@ -114,7 +119,7 @@ function holeCtx() {
   const toGreen = strokes.length === 0 ? teeBox(hole, S.round.teeIndex).yards_to_center : dist?.pin;
   // On the tee, Andrew's own plan from the book wins over a pure distance match (e.g. hybrid on No. 5)
   const planned = strokes.length === 0 ? bookTeeClub(holeBook(S.course, S.hole).caddy) : null;
-  let suggestion = planned || suggestClub(toGreen, S.bag, S.profiles);
+  let suggestion = planned || suggestClub(toGreen, inPlay(), S.profiles);
   // A club he tapped (but hasn't hit yet) is the yellow one; tapping yellow logs the shot
   const selected = S.selected?.hole === S.hole && S.selected.n === strokes.length ? S.selected.club : null;
   if (selected) suggestion = selected;
@@ -143,7 +148,7 @@ function holeCtx() {
       toCenter: Math.round(distYd(targetPt, center)),
       past: distYd(anchor, targetPt) > distYd(anchor, center) + 2, // flies beyond the middle of the green
       zone: zoneAt(S.course, S.hole, targetPt) };
-    if (manual) suggestion = suggestClub(toTarget, S.bag, S.profiles);
+    if (manual) suggestion = S.target.club && !selected ? S.target.club : suggestClub(toTarget, inPlay(), S.profiles); // the caddy's pick sticks to its target
   }
   return { hole, hr, pin, shots, strokes, last, live, liveLie, dist, holed, puttMode, suggestion, aim };
 }
@@ -153,7 +158,7 @@ function holeCtx() {
 // Same rule as the club grid: first tap selects (yellow), second tap logs.
 function chipRow(c) {
   const sel = S.selected?.hole === S.hole && S.selected.n === c.strokes.length ? S.selected.club : null;
-  const clubs = S.bag.filter((b) => b.active && (b.type === 'wedge' || b.type === 'putter'))
+  const clubs = inPlay().filter((b) => b.type === 'wedge' || b.type === 'putter')
     .sort((a, b) => (a.type === 'putter') - (b.type === 'putter') || b.loft - a.loft);
   return `<div class="lbl">${sel ? `<b class="sel-tag">${esc(sel)}</b> selected · tap it again to log the shot` : 'Off the green? Chip with'}</div>
     <div class="chips chip-row">${clubs.map((b) => `<button class="chip ${sel === b.id ? 'on-yellow' : ''} ${flashing(`club:${b.id}`) ? 'flash' : ''}" data-action="club" data-club="${b.id}" data-offgreen="1">${b.type === 'putter' ? 'Putter' : esc(b.id)}</button>`).join('')}</div>`;
@@ -161,8 +166,8 @@ function chipRow(c) {
 
 function bookTeeClub(caddy) {
   if (!caddy) return null;
-  if (caddy.plan?.carry) return clubForCarry(S.bag, caddy.plan.carry, caddy.plan.swing, caddy.plan.exclude);
-  const inBag = (id) => (S.bag.some((b) => b.id === id && b.active) ? id : null);
+  if (caddy.plan?.carry) return clubForCarry(inPlay(), caddy.plan.carry, caddy.plan.swing, caddy.plan.exclude);
+  const inBag = (id) => (inPlay().some((b) => b.id === id) ? id : null);
   if (caddy.tee_club) return inBag(caddy.tee_club); // older book format
   const opt = caddy.options?.find((o) => o.name === caddy.preferred);
   return inBag(opt?.club) || inBag(caddy.preferred);
@@ -178,7 +183,7 @@ function bookNote(text, caddy) {
 // ---------- rendering ----------
 
 function render() {
-  const views = { home: viewHome, setup: viewSetup, hole: viewHole, summary: viewSummary, settings: viewSettings, welcome: viewWelcome, workshop: viewWorkshop };
+  const views = { home: viewHome, setup: viewSetup, hole: viewHole, summary: viewSummary, settings: viewSettings, welcome: viewWelcome, workshop: viewWorkshop, report: viewReport };
   $app.innerHTML = views[S.view]() + (S.confirm ? confirmSheet() : '');
   if (S.view === 'hole') { renderLive(); refreshWind(); }
 }
@@ -383,6 +388,74 @@ function missMap(m) {
     </div>` : `<p>${list(m.tee)}</p>`}`;
 }
 
+// ---------- Post-round report ----------
+function shotLine(p) {
+  const club = clubById(p.club)?.label || p.club || 'Shot';
+  const lie = (l) => (LIE_LABEL[l] || l || '').toLowerCase();
+  const from = p.start.lie === 'green'
+    ? `${p.start.bucketFt === 1 ? 'tap-in' : `${p.start.distFt ?? Math.round((p.start.distYds || 0) * 3)} ft`}`
+    : `${p.start.distYds != null ? Math.round(p.start.distYds) + ' yds' : '?'}${p.start.lie && p.start.lie !== 'tee' ? `, ${lie(p.start.lie)}` : p.start.lie === 'tee' ? ' off the tee' : ''}`;
+  const e = p.end;
+  const to = !e ? '' : e.holed ? 'holed' : e.lie === 'green' || e.nextLie === 'green'
+    ? `to ${e.distFt ?? Math.round((e.distYds || 0) * 3)} ft` : `to ${e.distYds != null ? Math.round(e.distYds) + ' yds' : '?'}, ${lie(e.nextLie || e.lie)}`;
+  return `<b>No. ${p.hole}</b> · ${esc(club)} from ${from} ${to}`;
+}
+
+function viewReport() {
+  const a = S.analysis;
+  const r = a?.rounds.find((x) => x.round.id === S.reportId);
+  if (!r) return `<header class="bar"><button class="link" data-action="go" data-view="home">‹ Home</button><span class="wordmark">Round report</span><span></span></header><main class="pad"><p class="muted">Report not available for this round.</p></main>`;
+  const round = r.round;
+  const n = r.holes;
+  const avg = (cat) => (a.holes ? (a.rounds.reduce((s, x) => s + (cat ? x.cats[cat] : x.total), 0) * n) / a.holes : 0);
+  const best = [...a.rounds].sort((x, y) => y.totalPer18 - x.totalPer18)[0]?.round.id === round.id && a.rounds.length > 1;
+  const max = Math.max(1, ...CATEGORIES.map((c) => Math.max(Math.abs(r.cats[c.id]), Math.abs(avg(c.id)))));
+  const bar = (v, av) => {
+    const w = (x) => Math.min(50, (Math.abs(x) / max) * 50);
+    const pos = (x) => (x < 0 ? 50 - w(x) : 50 + w(x));
+    return `<span class="dv"><span class="dv-zero"></span><span class="dv-bar ${v < 0 ? 'neg' : 'pos'}" style="${v < 0 ? 'right:50%' : 'left:50%'};width:${w(v).toFixed(1)}%"></span>
+      <span class="dv-avg" style="left:${pos(av).toFixed(1)}%" title="Your average: ${signed(av, 2)}"></span></span>`;
+  };
+  const sorted = [...r.perShot].sort((x, y) => y.sg - x.sg);
+  const top = sorted.slice(0, 3).filter((p) => p.sg > 0.05);
+  const worst = sorted.slice(-3).reverse().filter((p) => p.sg < -0.05);
+  const st = r.stats;
+  const pct = (x, y) => (y ? `${x}/${y}` : '–');
+  const tags = [round.bagMode === 'half' ? 'Half set' : round.bagMode === 'full' ? 'Full bag' : null,
+    round.conditions?.greens && `${round.conditions.greens} greens`, round.conditions?.turf && `${round.conditions.turf} turf`].filter(Boolean);
+  return `
+  <header class="bar"><button class="link" data-action="go" data-view="home">‹ Home</button><span class="wordmark">Round report</span><span></span></header>
+  <main class="pad workshop">
+    <section class="hero">
+      <div class="eyebrow">${esc(courseMeta(round.courseId).sub)} · ${fmtDate(round.date, { weekday: 'short', month: 'short', day: 'numeric' })}${tags.length ? ` · ${esc(tags.join(' · '))}` : ''}</div>
+      <div class="ws-big">${round.totalStrokes ?? '–'}<span class="rp-topar">${round.toPar != null ? R.fmtToPar(round.toPar) : ''}</span></div>
+      <div class="ws-big-sub">${signed(r.total)} strokes against ${esc(goalName())} over ${n} holes${n !== 18 ? ` (${signed(r.totalPer18)} per 18)` : ''}</div>
+      ${best ? `<p class="goal"><span class="hl">Your best round</span> by strokes gained so far.</p>` : ''}
+    </section>
+
+    <h2>Where today's strokes went</h2>
+    <p class="muted small">This round's strokes gained against ${esc(goalName())}. The tick marks your average over the same number of holes.</p>
+    <div class="dv-rows">${CATEGORIES.map((c) => `<div class="dv-row" title="${esc(c.label)}: ${signed(r.cats[c.id], 2)} (average ${signed(avg(c.id), 2)})">
+      <span class="dv-lbl">${esc(c.label)}</span>${bar(r.cats[c.id], avg(c.id))}<span class="dv-val">${signed(r.cats[c.id])}</span></div>`).join('')}</div>
+
+    ${top.length ? `<h2>Best shots</h2><ul class="ws-patterns rp-shots">${top.map((p) => `<li><span class="k">+${p.sg.toFixed(2)} strokes</span>${shotLine(p)}</li>`).join('')}</ul>` : ''}
+    ${worst.length ? `<h2>Costliest shots</h2><ul class="ws-patterns rp-shots">${worst.map((p) => `<li><span class="k">${signed(p.sg, 2)} strokes</span>${shotLine(p)}</li>`).join('')}</ul>` : ''}
+
+    <h2>The numbers</h2>
+    <div class="totals ws-stats">
+      <div><b>${pct(st.gir, st.girHoles)}</b><span>Greens</span></div>
+      <div><b>${pct(st.fw, st.fwHoles)}</b><span>Fairways</span></div>
+      <div><b>${pct(st.scrambleMade, st.scrambleTry)}</b><span>Up & down</span></div>
+      <div><b>${st.putts}</b><span>Putts</span></div>
+      <div><b>${st.onePutts}</b><span>1-putts</span></div>
+      <div><b>${st.threePutts}</b><span>3-putts</span></div>
+    </div>
+    <button class="btn" data-action="open-summary" data-id="${round.id}">Scorecard</button>
+    <button class="btn primary" data-action="go" data-view="workshop">The Workshop</button>
+    <p class="muted small baseline-note"><b>${esc(BASELINE.name)}.</b> ${esc(BASELINE.note)}</p>
+  </main>`;
+}
+
 function viewWelcome() {
   return `
   <header class="bar"><span></span><span class="wordmark">Dialed<i class="dot"></i></span><span></span></header>
@@ -423,6 +496,9 @@ function viewSetup() {
       <span class="cc-text"><span class="eyebrow">${esc(c.name)}</span>
       <span class="cc-name">${esc(c.sub)}</span>
       <span class="cc-meta">Par ${c.par} · ${c.yards.toLocaleString()} yards</span></span></button>`).join('')}
+    <h2>Bag</h2>
+    <div class="seg">${[['full', 'Full bag'], ['half', 'Half set']].map(([k, l]) => `<button class="${st.bagMode === k ? 'on' : ''}" data-action="setup" data-k="bagMode" data-v="${k}">${l}</button>`).join('')}</div>
+    ${st.bagMode === 'half' ? `<p class="muted small">${(S.halfSet || []).join(' · ')} &nbsp;<a class="link small" data-action="go" data-view="settings">Edit</a></p>` : ''}
     <h2>Tees</h2>
     <div class="seg">${TEE_SETS.map((t, i) => `<button class="${st.teeIdx === i ? 'on' : ''}" data-action="setup" data-k="teeIdx" data-v="${i}">${t.label}</button>`).join('')}</div>
     ${is18 ? `<h2>Holes</h2>
@@ -467,6 +543,7 @@ function viewHole() {
     </div>
   </section>
 
+  <section class="caddy" data-live="caddy"></section>
   ${!holed && lastStroke ? quickTags(lastStroke, c) : ''}
 
   <section class="actions">
@@ -489,7 +566,7 @@ function viewHole() {
     : `
       ${c.suggestion && S.selected?.hole === S.hole && S.selected.club === c.suggestion && S.selected.n === strokes.length
         ? `<div class="sel-hint"><b>${esc(c.suggestion)}</b> selected · tap it again to log the shot</div>` : ''}
-      <div class="grid clubs">${S.bag.filter((b) => b.active).map((b) => `
+      <div class="grid clubs">${inPlay().map((b) => `
         <button class="btn club ${b.type === 'putter' ? 'putter' : ''} ${c.suggestion === b.id ? 'suggest' : ''} ${flashing(`club:${b.id}`) ? 'flash' : ''}" data-action="club" data-club="${b.id}" data-club-btn="${b.id}">
           <b>${b.id}</b><span>${b.type === 'putter' ? 'putt' : clubDistance(b).yds || ''}</span></button>`).join('')}
       </div>
@@ -538,6 +615,101 @@ function puttTrail(strokes) {
   if (!putts.length) return '';
   const ft = (s) => (s.start.bucketFt === 1 ? 'tap-in' : `${s.start.distFt ?? s.start.bucketFt ?? '?'}${s.start.bucketFt === 40 ? '+' : ''} ft`);
   return `<div class="putt-trail"><span class="lbl">Putts</span>${putts.map((s, i) => `<b class="${i === putts.length - 1 ? 'last' : ''}">${ft(s)}</b>`).join('<i>→</i>')}</div>`;
+}
+
+// ---------- The caddy on the hole screen ----------
+// Your known miss, as a fraction of carry (+ right, − left), from The Workshop's miss data
+function playerBias() {
+  const m = S.analysis?.misses;
+  if (!m) return {};
+  const t = m.tee, n = (t.left || 0) + (t.right || 0) + (t.on_target || 0);
+  const tee = n >= 6 ? Math.max(-0.03, Math.min(0.03, (((t.right || 0) - (t.left || 0)) / n) * 0.04)) : 0;
+  const dots = m.approachDots || [];
+  const approach = dots.length >= 5 ? Math.max(-0.03, Math.min(0.03, dots.reduce((s, d) => s + d.side, 0) / dots.length / 130)) : 0;
+  return { tee, approach };
+}
+
+// His logged tee-shot distances per club (start minus finish distance), for the caddy
+function teeProfiles() {
+  const by = {};
+  for (const r of S.analysis?.rounds || []) {
+    for (const p of r.perShot) {
+      if (p.cat !== 'tee' || !p.end || p.end.holed || p.start.distYds == null || p.end.distYds == null) continue;
+      const d = p.start.distYds - p.end.distYds;
+      if (d > 60) (by[p.club] ||= []).push(d);
+    }
+  }
+  const out = {};
+  for (const [club, arr] of Object.entries(by)) {
+    const mean = arr.reduce((a, b) => a + b, 0) / arr.length;
+    const sd = arr.length > 1 ? Math.sqrt(arr.reduce((a, b) => a + (b - mean) ** 2, 0) / (arr.length - 1)) : 15;
+    out[club] = { n: arr.length, mean, sd };
+  }
+  return out;
+}
+
+let caddyCache = { key: '', out: null };
+function caddyFor(c) {
+  if (c.holed || c.puttMode) return null;
+  const from = c.live || (c.strokes.length === 0 ? teeBox(c.hole, S.round.teeIndex).point : null);
+  if (!from) return null;
+  const isTee = c.strokes.length === 0;
+  const key = [S.hole, c.strokes.length, from.map((v) => v.toFixed(4)).join(','), c.pin?.join(',') || '', S.wind?.windMph ?? '', S.wind?.windDirDeg ?? '', S.wind?.tempF ?? '', inPlay().map((b) => b.id + b.yds).join('')].join('|');
+  if (caddyCache.key === key) return caddyCache.out;
+  const book = holeBook(S.course, S.hole);
+  let out = null;
+  try {
+    out = advise({ course: S.course, hole: c.hole, from, pin: c.pin, clubs: inPlay(), wind: S.wind, isTee,
+      plan: isTee ? bookTeeClub(book.caddy) : null, rules: book.caddy || {}, bias: playerBias(), profiles: teeProfiles() });
+  } catch (e) { console.warn('caddy', e); }
+  caddyCache = { key, out };
+  return out;
+}
+
+function caddyHtml(c) {
+  const a = caddyFor(c);
+  if (!a) return '';
+  const b = a.best, club = b.club;
+  const yds = (n) => `${Math.abs(Math.round(n))}`;
+  const near = (v) => Math.abs(v) < 3;
+  const aim = b.target
+    ? (near(a.lAlong) && near(a.lSide) ? 'aim at the pin'
+      : `aim ${[!near(a.lSide) ? `${yds(a.lSide)} ${a.lSide < 0 ? 'left' : 'right'}` : '', !near(a.lAlong) ? `${yds(a.lAlong)} ${a.lAlong < 0 ? 'short' : 'past'}` : ''].filter(Boolean).join(', ')} of the pin`)
+    : `${b.swing === 'three-quarter' ? '¾ swing, ' : ''}${b.aimSide ? `aim ${yds(b.aimSide)} ${b.aimSide < 0 ? 'left' : 'right'} of the line` : 'down the line'}`;
+  // reasons, in plain words
+  const why = [];
+  const d = a.toTarget, heatYds = d - d / a.cond.heat, windYds = d / a.cond.heat - d / a.cond.factor;
+  const conds = [Math.abs(heatYds) >= 1 ? `${a.cond.tempF > 70 ? 'heat' : 'cool air'} ${heatYds > 0 ? 'adds' : 'costs'} ~${yds(heatYds)} yds` : null,
+    Math.abs(windYds) >= 1 ? `the wind ${windYds > 0 ? 'adds' : 'costs'} ~${yds(windYds)} yds` : null,
+    Math.abs(a.cond.cross) >= 3 ? `${Math.round(Math.abs(a.cond.cross))} mph ${a.cond.cross > 0 ? 'left-to-right' : 'right-to-left'} moves it ~${yds(a.cond.cross * (club.yds / 100) * 0.45)} yds` : null].filter(Boolean);
+  if (conds.length) why.push(`Plays ${a.playsLike}: ${conds.join(', ')}.`);
+  if (b.partial) why.push(`A partial ${esc(club.label)} (about ${Math.round(b.carry)} carry).`);
+  if (b.logged) why.push(`Uses your ${b.logged} logged tee shot${b.logged > 1 ? 's' : ''} with the ${esc(club.label)} (about ${Math.round(b.fly / a.cond.factor)} yds total), not just the stock number.`);
+  if (a.zone) why.push(`Lands in your book's ${a.zone.kind} zone: ${esc(a.zone.label)}.`);
+  const aimSide = b.target ? a.lSide : b.aimSide;
+  const drift = a.cond.cross * (club.yds / 100) * 0.45;
+  if (Math.abs(aimSide) >= 3 && Math.abs(drift) >= 3 && Math.sign(aimSide) === -Math.sign(drift)) {
+    why.push(`Aim ${aimSide > 0 ? 'right' : 'left'} and let the wind bring it back.`);
+  } else if (Math.abs(aimSide) >= 3 || (b.target && Math.abs(a.lAlong) >= 3)) {
+    why.push('Shaded away from the trouble; that scores better on average than aiming straight at the flag or down the middle.');
+  }
+  const bias = playerBias();
+  if ((b.target ? bias.approach : bias.tee) < -0.005) why.push('Allows for your left miss.');
+  if ((b.target ? bias.approach : bias.tee) > 0.005) why.push('Allows for your right miss.');
+  if (a.planClub) {
+    why.push(a.planClub === club.id ? `Matches your book plan (${esc(clubById(a.planClub)?.label || a.planClub)}).`
+      : a.planOption ? `Your book plan, ${esc(clubById(a.planClub)?.label || a.planClub)}, scores ${(a.planOption.exp - b.exp).toFixed(2)} strokes worse on these numbers. Your call: the book knows things the map doesn't.` : '');
+  }
+  const alts = a.alternatives.map((o) => `${o.swing === 'three-quarter' ? '¾ ' : ''}${esc(o.club.label)}${o.partial ? ' (partial)' : ''} <span class="muted">+${(o.exp - b.exp).toFixed(2)}</span>`).join(' · ');
+  return `<button class="caddy-strip" data-action="caddy-toggle">
+      <span class="eyebrow">Caddy</span><b>${esc(club.id)}${b.partial ? '<i> part</i>' : b.swing === 'three-quarter' ? '<i> ¾</i>' : ''}</b><span class="cs-aim">${aim} · plays ${a.playsLike}</span><span class="chev">${S.caddyOpen ? '−' : '+'}</span></button>
+    ${S.caddyOpen ? `<div class="caddy-detail">
+      <p class="cd-exp">Expected score from here: <b>${b.exp.toFixed(2)}</b></p>
+      <ul>${why.filter(Boolean).map((w) => `<li>${w}</li>`).join('')}</ul>
+      ${alts ? `<p class="muted small">Next best: ${alts}</p>` : ''}
+      <button class="btn primary" data-action="caddy-use">Use this: ${esc(club.label)}, target on the map</button>
+      <p class="muted small">Provisional caddy: spread and wind rules of thumb until there's more of your own data.</p>
+    </div>` : ''}`;
 }
 
 // Wind relative to the line you're playing (from your ball, else the tee, to the pin)
@@ -651,6 +823,7 @@ function renderLive() {
     : st.last ? `GPS ±${Math.round(st.last.acc)} m` : 'Finding GPS…');
   set('lie', c.live && c.strokes.length ? `· ${LIE_LABEL[c.liveLie.lie]}` : '');
   set('wind', windHtml(c));
+  set('caddy', caddyHtml(c));
   set('aim', c.aim ? `<span class="a-sum"><b>${c.aim.toTarget}</b> to target · <b>${c.aim.toCenter}</b> ${c.aim.past ? 'past center' : 'left'}</span>
     ${c.aim.zone ? `<span class="a-zone k-${c.aim.zone.kind}">Target in ${c.aim.zone.kind}: ${esc(c.aim.zone.label)}</span>` : ''}
     ${c.aim.manual ? `<button class="text-btn a-clear" data-action="clear-target">Reset target</button>` : ''}` : '');
@@ -726,6 +899,7 @@ function viewSummary() {
       <button class="btn primary xl" data-action="back-to-hole">Back to No. ${cur}</button>
       ${sum.holesDone ? `<button class="btn ghost" data-action="end-early">End round early</button>` : ''}`) : ''}
     <div class="text-btns">
+      ${!active ? `<button class="text-btn" data-action="open-report" data-id="${round.id}">Round report</button>` : ''}
       <button class="text-btn" data-action="export-round" data-id="${round.id}">Export</button>
       <button class="text-btn danger-text" data-action="${active ? 'discard-round' : 'delete-round'}" data-id="${round.id}">${active ? 'Discard round' : 'Delete round'}</button>
     </div>
@@ -743,6 +917,9 @@ function viewSettings() {
     <label class="field">Name <input data-player="name" value="${esc(S.player.name)}"></label>
     <label class="field">Handicap index <input data-player="handicap" type="number" step="0.1" inputmode="decimal" value="${esc(S.player.handicap)}"></label>
     <label class="field">Goal handicap <input data-player="goal" type="number" step="0.1" inputmode="decimal" value="${esc(S.player.goal ?? '')}"></label>
+    <h2>Half set</h2>
+    <p class="muted small">The clubs you carry when you pick <b>Half set</b> at the start of a round.</p>
+    <div class="chips">${S.bag.filter((b) => b.active).map((b) => `<button class="chip ${S.halfSet.includes(b.id) ? 'on' : ''}" data-action="toggle-half" data-id="${b.id}">${esc(b.id)}</button>`).join('')}</div>
     <h2>My bag</h2>
     <p class="muted small">Tick the clubs in the bag today (max 14). Yardages are <b>carry</b> and drive the club suggestions. Logged totals from your rounds appear alongside for reference.</p>
     ${bagTable()}
@@ -820,11 +997,15 @@ async function finishRound() {
   const sum = R.scoreSummary(S.round, S.holeResults);
   Object.assign(S.round, { status: 'complete', totalStrokes: sum.strokes, toPar: sum.toPar, holesCompleted: sum.holesDone, finishedAt: new Date().toISOString() });
   await db.put('rounds', S.round);
+  const id = S.round.id;
   S.round = null;
   gps.stop();
   await refreshRounds();
-  S.view = 'home';
+  // straight to the round report
+  S.reportId = id;
+  S.view = S.analysis?.rounds.some((r) => r.round.id === id) ? 'report' : 'home';
   render();
+  window.scrollTo(0, 0);
 }
 
 async function openSummary(id) {
@@ -859,7 +1040,10 @@ const actions = {
   },
   'start-round': async () => {
     const course = await loadCourse(S.setup.courseId);
-    const round = await R.createRound({ course, teeSet: TEE_SETS[S.setup.teeIdx], mode: S.setup.mode, player: S.player });
+    const half = S.setup.bagMode === 'half';
+    const round = await R.createRound({ course, teeSet: TEE_SETS[S.setup.teeIdx], mode: S.setup.mode, player: S.player,
+      bagMode: S.setup.bagMode, bag: half ? [...S.halfSet] : null });
+    await db.setMeta('lastBagMode', S.setup.bagMode);
     await refreshRounds();
     await openRound(round.id);
     render();
@@ -1033,6 +1217,24 @@ const actions = {
     await db.put('rounds', round);
     if (S.round?.id === id) S.round.conditions = round.conditions;
     await refreshRounds();
+    render();
+  },
+  'open-report': (el) => { S.reportId = el.dataset.id; S.view = 'report'; render(); window.scrollTo(0, 0); },
+  'caddy-toggle': () => { S.caddyOpen = !S.caddyOpen; renderLive(); },
+  'caddy-use': () => {
+    const c = holeCtx();
+    const a = caddyFor(c);
+    if (!a) return;
+    S.selected = { hole: S.hole, n: c.strokes.length, club: a.best.club.id };
+    S.target = { hole: S.hole, pt: a.landing, club: a.best.club.id };
+    S.caddyOpen = false;
+    render();
+    toast(`${a.best.club.label} selected. Tap it again to log.`);
+  },
+  'toggle-half': async (el) => {
+    const id = el.dataset.id;
+    S.halfSet = S.halfSet.includes(id) ? S.halfSet.filter((x) => x !== id) : [...S.halfSet, id];
+    await db.setMeta('halfSet', S.halfSet);
     render();
   },
   'drill-done': async (el) => {

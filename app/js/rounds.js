@@ -18,7 +18,7 @@ export function holeOrder(course, mode) {
   return [...Array(n)].map((_, i) => i + 1);
 }
 
-export async function createRound({ course, teeSet, mode, player }) {
+export async function createRound({ course, teeSet, mode, player, bagMode = 'full', bag = null }) {
   const holes = holeOrder(course, mode);
   const round = {
     id: db.uid(),
@@ -33,6 +33,8 @@ export async function createRound({ course, teeSet, mode, player }) {
     status: 'active',
     notes: '',
     player: player ? { name: player.name, handicap: player.handicap } : null,
+    bagMode, // 'full' | 'half'
+    bag, // club ids carried this round (null = everything active in the bag)
   };
   await db.put('rounds', round);
   return round;
