@@ -120,12 +120,23 @@ const LIE_ORDER = ['green', 'sand', 'penalty', 'tee', 'fairway'];
 
 // Returns 'green' | 'sand' | 'penalty' | 'tee' | 'fairway' | 'rough'.
 // `trusted` is false when the hole is missing shapes (so "rough" may really be fairway/sand).
-export function detectLie(course, holeNumber, pt) {
+// accMeters: the GPS fix's accuracy. If the ball reads "rough" but a fairway or bunker lies within
+// that distance, the lie is borderline (`trusted: false`) and the app asks with one tap.
+export function detectLie(course, holeNumber, pt, accMeters = 0) {
   if (!pt) return { lie: null, trusted: false };
   for (const lie of LIE_ORDER) {
     if (course.lieFeatures[lie].some((g) => pointInGeom(pt, g))) return { lie, trusted: true };
   }
   const c = getHole(course, holeNumber)?.completeness || {};
+  const r = Math.min(Math.max(accMeters, 0), 15) * 0.9; // look out to ~the GPS error
+  if (r >= 3) {
+    const kx = 111320 * Math.cos((pt[1] * Math.PI) / 180), ky = 111320;
+    for (let k = 0; k < 8; k++) {
+      const a = (k * Math.PI) / 4, q = [pt[0] + (Math.cos(a) * r) / kx, pt[1] + (Math.sin(a) * r) / ky];
+      const near = ['fairway', 'sand'].find((lie) => course.lieFeatures[lie].some((g) => pointInGeom(q, g)));
+      if (near) return { lie: 'rough', trusted: false, borderline: near };
+    }
+  }
   return { lie: 'rough', trusted: !!(c.fairway && c.bunkers) };
 }
 

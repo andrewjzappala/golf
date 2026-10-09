@@ -12,7 +12,7 @@ import { BASELINE, setBaselineGoal } from './baseline.js';
 import { pickDrills } from './drills.js';
 import { advise } from './caddy.js';
 
-const APP_VERSION = '0.17.0';
+const APP_VERSION = '0.17.1';
 
 const S = {
   view: 'home',
@@ -764,7 +764,7 @@ function shotRow(s, i) {
 function quickTags(s, c) {
   const askLie = s.shotType !== 'putt' && s.lieNeedsConfirm;
   return `<section class="quick">
-    ${askLie ? `<div class="lbl">Lie for shot ${c.strokes.indexOf(s) + 1}? (map data incomplete here)</div>
+    ${askLie ? `<div class="lbl">Lie for shot ${c.strokes.indexOf(s) + 1}? (GPS is borderline here)</div>
       <div class="chips">${['fairway', 'rough', 'sand', 'recovery'].map((l) => `<button class="chip ${s.start.lie === l ? 'on' : ''}" data-action="set-lie" data-id="${s.id}" data-lie="${l}">${LIE_LABEL[l]}</button>`).join('')}</div>` : ''}
     <div class="lbl">Result of ${s.club ? clubById(s.club)?.id || s.club : 'last shot'}</div>
     <div class="chips"><button class="chip voice" data-action="note" data-id="${s.id}"><svg class="mic" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>Note</button>${R.MISSES.map((m) => `<button class="chip ${s.miss === m ? 'on' : ''}" data-action="set-miss" data-id="${s.id}" data-miss="${m}">${MISS_LABEL[m]}</button>`).join('')}</div>
@@ -988,7 +988,7 @@ async function addShot({ club, shotType, bucketFt, offGreen = false }) {
       if (first && !final) recordHoleWeather(S.round.id, shot.hole, pos ? [pos.lon, pos.lat] : getHole(S.course, shot.hole).tee.point);
       shot.start.pos = pos;
       if (pos && !first && bucketFt == null) {
-        const det = detectLie(S.course, shot.hole, [pos.lon, pos.lat]);
+        const det = detectLie(S.course, shot.hole, [pos.lon, pos.lat], pos.acc);
         if (det.lie) { shot.start.lie = fringe(det.lie); shot.lieNeedsConfirm = det.lie === 'rough' && !det.trusted; }
       }
       await recompute(shot.hole);
