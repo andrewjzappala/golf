@@ -14,7 +14,7 @@
 
 import { expected } from './baseline.js';
 import { distYd, bearing, pointInGeom } from './geo.js';
-import { detectLie, zoneAt, pointAlongHoleLine } from './course.js';
+import { detectLie, zoneAt, pointAlongHoleLine, elevationYards, elevAt } from './course.js';
 
 const YD = 0.9144;
 
@@ -99,13 +99,16 @@ function teeDistance(club, profiles) {
   return { mean: (p.n * p.mean + k * stock) / (p.n + k), sd: Math.sqrt((p.n * p.sd ** 2 + k * stockSd ** 2) / (p.n + k)), n: p.n };
 }
 
-export function advise({ course, hole, from, pin, clubs, wind, isTee, plan, rules = {}, bias = {}, profiles = {} }) {
+export function advise({ course, hole, from, pin, clubs, wind, isTee, plan, rules = {}, bias = {}, profiles = {}, flyer = false }) {
   if (!from) return null;
   const pinPt = pin || hole.green.center;
   const toPin = distYd(from, pinPt);
   if (toPin < 25) return null; // chips and putts: feel shots, no caddy maths
   const lineBrg = bearing(from, pinPt);
   const cond = conditions(wind, isTee ? bearing(from, pointAlongHoleLine(hole, 200)) : lineBrg);
+  // A flyer from the rough comes out hot (~6% further) with less spin, so less distance control
+  if (flyer && !isTee) { cond.factor *= 1.06; cond.flyer = true; }
+  const up = (pt) => elevationYards(course, from, pt); // + uphill: the shot plays longer
   const ctx = {
     course, hole, pin: pinPt, cond,
     teeBias: bias.tee || 0, approachBias: bias.approach || 0,
@@ -121,7 +124,8 @@ export function advise({ course, hole, from, pin, clubs, wind, isTee, plan, rule
       const td = teeDistance(c, profiles);
       for (const swing of ['full', 'three-quarter']) {
         const k = swing === 'full' ? 1 : 0.9;
-        const fly = td.mean * k * cond.factor;
+        const fly0 = td.mean * k * cond.factor;
+        const fly = fly0 - up(pointAlongHoleLine(hole, fly0)); // uphill eats ground distance
         const centre = pointAlongHoleLine(hole, fly);
         for (const sideAim of [-12, -6, 0, 6, 12]) {
           const brg = bearing(from, centre) + Math.atan2(sideAim, fly);
@@ -137,15 +141,16 @@ export function advise({ course, hole, from, pin, clubs, wind, isTee, plan, rule
       for (const sideAim of [-8, -4, 0, 4, 8]) {
         const tgt = offset(offset(pinPt, lineBrg, along), lineBrg + Math.PI / 2, sideAim);
         const need = distYd(from, tgt);
-        const carryNeeded = need / cond.factor;
+        const climb = up(tgt);
+        const carryNeeded = (need + climb) / cond.factor;
         const brg = bearing(from, tgt);
         const near = [...full].sort((a, b) => Math.abs(a.yds - carryNeeded) - Math.abs(b.yds - carryNeeded)).slice(0, 2);
         const cands = near.map((c) => ({ club: c, carry: c.yds, partial: false }));
         if (wedges.length && carryNeeded < wedges[0].yds - 3) cands.push({ club: wedges[0], carry: carryNeeded, partial: true });
         for (const k of cands) {
-          const fly = k.carry * cond.factor;
+          const fly = k.carry * cond.factor - climb;
           options.push({ club: k.club, partial: k.partial, carry: k.carry, along, aimSide: sideAim, fly, brg, target: tgt,
-            exp: simulate(ctx, from, brg, fly, k.carry, { partial: k.partial }) });
+            exp: simulate(ctx, from, brg, fly, k.carry, { partial: k.partial, longSd: cond.flyer ? spread(k.carry).long * 1.35 : undefined }) });
         }
       }
     }
@@ -167,9 +172,12 @@ export function advise({ course, hole, from, pin, clubs, wind, isTee, plan, rule
   const toPinBrg = bearing(from, pinPt);
   const lAlong = distYd(from, landing) * Math.cos(bearing(from, landing) - toPinBrg) - toPin;
   const lSide = distYd(from, landing) * Math.sin(bearing(from, landing) - toPinBrg);
-  const playsLike = Math.round(distYd(from, landing) / cond.factor);
+  const climbYds = up(landing);
+  const za = elevAt(course, from), zb = elevAt(course, landing);
+  const climbFt = za != null && zb != null ? (zb - za) * 3.2808 : 0;
+  const playsLike = Math.round((distYd(from, landing) + climbYds) / cond.factor);
   return {
-    best, landing, playsLike, toTarget: Math.round(distYd(from, landing)), cond, lAlong, lSide,
+    best, landing, playsLike, toTarget: Math.round(distYd(from, landing)), cond, lAlong, lSide, climbYds, climbFt,
     zone: zoneAt(course, hole.number, landing),
     alternatives: perClub.filter((p) => p !== best).slice(0, 2),
     planClub: plan || null,

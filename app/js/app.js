@@ -1,6 +1,6 @@
 import * as db from './db.js';
 import * as gps from './gps.js';
-import { COURSES, TEE_SETS, loadCourse, getHole, teeBox, detectLie, distancesFrom, holeBook, zoneAt, pointAlongHoleLine } from './course.js';
+import { COURSES, TEE_SETS, loadCourse, getHole, teeBox, detectLie, distancesFrom, holeBook, zoneAt, pointAlongHoleLine, elevAt, elevationYards } from './course.js';
 import { ANDREW_BAG, ANDREW_PLAYER, STARTER_BAG, DEFAULT_HALF_SET, clubForCarry, buildProfiles, suggestClub, inferShotType, clubDistance } from './clubs.js';
 import { parseNote, speechAvailable, listen } from './voice.js';
 import { recordHoleWeather, backfillPending, currentConditions } from './weather.js';
@@ -12,7 +12,7 @@ import { BASELINE, setBaselineGoal } from './baseline.js';
 import { pickDrills } from './drills.js';
 import { advise } from './caddy.js';
 
-const APP_VERSION = '0.16.0';
+const APP_VERSION = '0.17.0';
 
 const S = {
   view: 'home',
@@ -538,6 +538,7 @@ function viewHole() {
           <span class="cb-lbl">Scorecard &nbsp;→</span></button>
         <div class="aim-info" data-live="aim"></div>
         <div class="wind" data-live="wind"></div>
+        <div class="elev" data-live="elev"></div>
         <div class="status"><span data-live="gps">GPS…</span> <span data-live="lie"></span></div>
       </div>
     </div>
@@ -654,21 +655,28 @@ function caddyFor(c) {
   const from = c.live || (c.strokes.length === 0 ? teeBox(c.hole, S.round.teeIndex).point : null);
   if (!from) return null;
   const isTee = c.strokes.length === 0;
-  const key = [S.hole, c.strokes.length, from.map((v) => v.toFixed(4)).join(','), c.pin?.join(',') || '', S.wind?.windMph ?? '', S.wind?.windDirDeg ?? '', S.wind?.tempF ?? '', inPlay().map((b) => b.id + b.yds).join('')].join('|');
+  const key = [S.hole, c.strokes.length, S.flyer ? 'flyer' : '', from.map((v) => v.toFixed(4)).join(','), c.pin?.join(',') || '', S.wind?.windMph ?? '', S.wind?.windDirDeg ?? '', S.wind?.tempF ?? '', inPlay().map((b) => b.id + b.yds).join('')].join('|');
   if (caddyCache.key === key) return caddyCache.out;
   const book = holeBook(S.course, S.hole);
   let out = null;
   try {
     out = advise({ course: S.course, hole: c.hole, from, pin: c.pin, clubs: inPlay(), wind: S.wind, isTee,
-      plan: isTee ? bookTeeClub(book.caddy) : null, rules: book.caddy || {}, bias: playerBias(), profiles: teeProfiles() });
+      plan: isTee ? bookTeeClub(book.caddy) : null, rules: book.caddy || {}, bias: playerBias(), profiles: teeProfiles(), flyer: !!S.flyer });
   } catch (e) { console.warn('caddy', e); }
   caddyCache = { key, out };
   return out;
 }
 
 function caddyHtml(c) {
+  const rough = !c.holed && !c.puttMode && c.strokes.length > 0 && c.liveLie?.lie === 'rough';
+  const flyerRow = rough ? `<div class="flyer-row"><span class="lbl">In the rough</span>
+    <button class="chip ${S.flyer ? 'on' : ''}" data-action="toggle-flyer">Flyer lie</button></div>` : '';
   const a = caddyFor(c);
-  if (!a) return '';
+  if (!a) return flyerRow;
+  return flyerRow + caddyStrip(c, a);
+}
+
+function caddyStrip(c, a) {
   const b = a.best, club = b.club;
   const yds = (n) => `${Math.abs(Math.round(n))}`;
   const near = (v) => Math.abs(v) < 3;
@@ -682,6 +690,8 @@ function caddyHtml(c) {
   const conds = [Math.abs(heatYds) >= 1 ? `${a.cond.tempF > 70 ? 'heat' : 'cool air'} ${heatYds > 0 ? 'adds' : 'costs'} ~${yds(heatYds)} yds` : null,
     Math.abs(windYds) >= 1 ? `the wind ${windYds > 0 ? 'adds' : 'costs'} ~${yds(windYds)} yds` : null,
     Math.abs(a.cond.cross) >= 3 ? `${Math.round(Math.abs(a.cond.cross))} mph ${a.cond.cross > 0 ? 'left-to-right' : 'right-to-left'} moves it ~${yds(a.cond.cross * (club.yds / 100) * 0.45)} yds` : null].filter(Boolean);
+  if (Math.abs(a.climbYds) >= 1) conds.push(`${a.climbFt > 0 ? 'uphill' : 'downhill'} ${Math.abs(Math.round(a.climbFt))} ft ${a.climbYds > 0 ? 'adds' : 'takes off'} ~${yds(a.climbYds)} yds`);
+  if (a.cond.flyer) conds.push('a flyer lie adds ~6% and less spin');
   if (conds.length) why.push(`Plays ${a.playsLike}: ${conds.join(', ')}.`);
   if (b.partial) why.push(`A partial ${esc(club.label)} (about ${Math.round(b.carry)} carry).`);
   if (b.logged) why.push(`Uses your ${b.logged} logged tee shot${b.logged > 1 ? 's' : ''} with the ${esc(club.label)} (about ${Math.round(b.fly / a.cond.factor)} yds total), not just the stock number.`);
@@ -796,6 +806,8 @@ function editSheet() {
       <div class="chips">${R.PUTT_BUCKETS.map((b) => `<button class="chip ${s.start.bucketFt === b ? 'on' : ''}" data-action="edit-field" data-f="bucketFt" data-v="${b}">${R.puttLabel(b)}</button>`).join('')}</div>` : `
     <div class="lbl">Lie (where it was hit from)</div>
     <div class="chips">${R.LIES.map((l) => `<button class="chip ${s.start.lie === l ? 'on' : ''}" data-action="edit-field" data-f="lie" data-v="${l}">${LIE_LABEL[l]}</button>`).join('')}</div>`}
+    ${s.start.lie === 'rough' || s.start.flyer ? `<div class="lbl">Lie detail</div>
+    <div class="chips"><button class="chip ${s.start.flyer ? 'on' : ''}" data-action="edit-field" data-f="flyer" data-v="1">Flyer lie</button></div>` : ''}
     <div class="lbl">Shot type</div>
     <div class="chips">${R.SHOT_TYPES.map((t) => `<button class="chip ${s.shotType === t ? 'on' : ''}" data-action="edit-field" data-f="shotType" data-v="${t}">${t}</button>`).join('')}</div>
     <div class="lbl">Result</div>
@@ -824,6 +836,11 @@ function renderLive() {
   set('lie', c.live && c.strokes.length ? `· ${LIE_LABEL[c.liveLie.lie]}` : '');
   set('wind', windHtml(c));
   set('caddy', caddyHtml(c));
+  // climb or drop to the middle of the green from here (or the tee)
+  const from = c.live || (c.strokes.length === 0 ? teeBox(c.hole, S.round.teeIndex).point : null);
+  const za = from && elevAt(S.course, from), zb = elevAt(S.course, c.pin || c.hole.green.center);
+  const ft = za != null && zb != null ? Math.round((zb - za) * 3.2808) : null;
+  set('elev', ft != null && Math.abs(ft) >= 2 ? `${ft > 0 ? '↑' : '↓'} ${Math.abs(ft)} ft to the green · plays ${ft > 0 ? '+' : '−'}${Math.abs(Math.round(elevationYards(S.course, from, c.pin || c.hole.green.center)))}` : '');
   set('aim', c.aim ? `<span class="a-sum"><b>${c.aim.toTarget}</b> to target · <b>${c.aim.toCenter}</b> ${c.aim.past ? 'past center' : 'left'}</span>
     ${c.aim.zone ? `<span class="a-zone k-${c.aim.zone.kind}">Target in ${c.aim.zone.kind}: ${esc(c.aim.zone.label)}</span>` : ''}
     ${c.aim.manual ? `<button class="text-btn a-clear" data-action="clear-target">Reset target</button>` : ''}` : '');
@@ -955,6 +972,8 @@ async function addShot({ club, shotType, bucketFt, offGreen = false }) {
   const fringe = (lie) => (bucketFt == null && lie === 'green' && (offGreen || clubObj?.type !== 'putter') ? 'fairway' : lie);
   shot.start.lie = fringe(shot.start.lie);
   shot.shotType = shotType || inferShotType(clubObj, shot.start.lie, c.dist?.pin);
+  if (S.flyer && shot.start.lie === 'rough') shot.start.flyer = true;
+  S.flyer = false;
   S.shots.push(shot);
   S.target = null;
   S.selected = null;
@@ -1135,6 +1154,7 @@ const actions = {
     await saveNote();
     if (f === 'lie') { s.start.lie = v; s.lieNeedsConfirm = false; }
     else if (f === 'bucketFt') s.start.bucketFt = +v;
+    else if (f === 'flyer') s.start.flyer = !s.start.flyer;
     else if (f === 'miss') s.miss = s.miss === v ? null : v;
     else s[f] = v;
     if (f === 'club' && clubById(v)?.type === 'putter' && s.start.lie === 'green') s.shotType = 'putt';
@@ -1221,6 +1241,7 @@ const actions = {
   },
   'open-report': (el) => { S.reportId = el.dataset.id; S.view = 'report'; render(); window.scrollTo(0, 0); },
   'caddy-toggle': () => { S.caddyOpen = !S.caddyOpen; renderLive(); },
+  'toggle-flyer': () => { S.flyer = !S.flyer; renderLive(); },
   'caddy-use': () => {
     const c = holeCtx();
     const a = caddyFor(c);

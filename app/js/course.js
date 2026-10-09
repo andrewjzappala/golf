@@ -3,8 +3,8 @@
 import { distYd, pointInGeom } from './geo.js';
 
 export const COURSES = [
-  { id: 'balboa-park-18', short: 'Balboa 18', name: 'Balboa Park', sub: 'The Eighteen', crest: 'courses/balboa-emblem.png', par: 72, yards: 6339, file: 'courses/balboa_18_course.json' },
-  { id: 'balboa-park-9', short: 'Balboa 9', name: 'Balboa Park', sub: 'The Executive Nine', crest: 'courses/balboa-emblem.png', par: 32, yards: 2175, file: 'courses/balboa_9_course.json', zones: 'courses/balboa_9_zones.json' },
+  { id: 'balboa-park-18', short: 'Balboa 18', name: 'Balboa Park', sub: 'The Eighteen', crest: 'courses/balboa-emblem.png', par: 72, yards: 6339, file: 'courses/balboa_18_course.json', elevation: 'courses/balboa_18_elevation.json' },
+  { id: 'balboa-park-9', short: 'Balboa 9', name: 'Balboa Park', sub: 'The Executive Nine', crest: 'courses/balboa-emblem.png', par: 32, yards: 2175, file: 'courses/balboa_9_course.json', zones: 'courses/balboa_9_zones.json', elevation: 'courses/balboa_9_elevation.json' },
 ];
 
 // Tee sets as positions in each hole's tee_boxes list (ordered back → forward).
@@ -27,11 +27,36 @@ export async function loadCourse(id) {
   const book = await loadBook(meta); // Andrew's miss zones + notes (separate manual file)
   course.book = book.holes || {};
   course.bookNotes = book.course_notes || [];
+  course.elevation = await loadJson(meta.elevation); // USGS 1 m lidar heights, gridded
   cache.set(id, course);
   return course;
 }
 
 export const getHole = (course, n) => course.holes.find((h) => h.number === n);
+
+async function loadJson(path) {
+  if (!path) return null;
+  try { const r = await fetch(path); return r.ok ? await r.json() : null; } catch { return null; }
+}
+
+// Ground height (meters) at a point, bilinear between grid points. null outside the grid.
+export function elevAt(course, [lon, lat]) {
+  const g = course?.elevation;
+  if (!g) return null;
+  const x = (lon - g.origin[0]) / g.step[0], y = (lat - g.origin[1]) / g.step[1];
+  const i = Math.floor(x), j = Math.floor(y);
+  if (i < 0 || j < 0 || i >= g.nx - 1 || j >= g.ny - 1) return null;
+  const fx = x - i, fy = y - j, v = g.meters, n = g.nx;
+  return v[j * n + i] * (1 - fx) * (1 - fy) + v[j * n + i + 1] * fx * (1 - fy) + v[(j + 1) * n + i] * (1 - fx) * fy + v[(j + 1) * n + i + 1] * fx * fy;
+}
+
+// Plays-like yards for a height change from a to b: ~1 yd per yd uphill, ~0.8 per yd downhill
+export function elevationYards(course, a, b) {
+  const za = elevAt(course, a), zb = elevAt(course, b);
+  if (za == null || zb == null) return 0;
+  const yds = (zb - za) * 1.0936;
+  return yds >= 0 ? yds : yds * 0.8;
+}
 
 async function loadBook(meta) {
   if (!meta.zones) return {};
