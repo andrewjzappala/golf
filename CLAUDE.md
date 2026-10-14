@@ -185,6 +185,8 @@ The improvement section. Handicap moved out of the spotlight: GHIN has no public
 
 ## Open tasks and questions
 
+- **Voice-recap test (agreed 2026-10-14):** Andrew logs his next round normally in the app, then records a completely free-form voice recap (Voice Memos transcript) without looking at the app. Claude parses the recap blind into a round file first, then compares it shot by shot with the logged round (score, clubs, distances, lies, putts, misses, SG). The result decides whether to build "Import from notes" (rule-based, or Claude-parsed via a small proxy). Options discussed: Siri Shortcut per shot (time + GPS + dictation), whole-round voice memo, post-round recap.
+
 - Find and document the source of a low-handicap/scratch strokes-gained baseline table (a provisional scaled-Tour baseline is in use; see The Workshop).
 - Verify voice input support in iPhone Safari before relying on it; tap input must work on its own.
 - Choose the weather API (per-hole snapshots, including wind direction).
