@@ -498,7 +498,7 @@ function viewSetup() {
       <span class="cc-meta">Par ${c.par} · ${c.yards.toLocaleString()} yards</span></span></button>`).join('')}
     <h2>Bag</h2>
     <div class="seg">${[['full', 'Full bag'], ['half', 'Half set']].map(([k, l]) => `<button class="${st.bagMode === k ? 'on' : ''}" data-action="setup" data-k="bagMode" data-v="${k}">${l}</button>`).join('')}</div>
-    ${st.bagMode === 'half' ? `<p class="muted small">${(S.halfSet || []).join(' · ')} &nbsp;<a class="link small" data-action="go" data-view="settings">Edit</a></p>` : ''}
+    <p class="muted small">${(st.bagMode === 'half' ? S.halfSet || [] : S.bag.filter((b) => b.active).map((b) => b.id)).join(' · ')} &nbsp;<a class="link small" data-action="go" data-view="settings">Edit</a></p>
     <h2>Tees</h2>
     <div class="seg">${TEE_SETS.map((t, i) => `<button class="${st.teeIdx === i ? 'on' : ''}" data-action="setup" data-k="teeIdx" data-v="${i}">${t.label}</button>`).join('')}</div>
     ${is18 ? `<h2>Holes</h2>
@@ -937,8 +937,8 @@ function viewSettings() {
     <h2>Half set</h2>
     <p class="muted small">The clubs you carry when you pick <b>Half set</b> at the start of a round.</p>
     <div class="chips">${S.bag.filter((b) => b.active).map((b) => `<button class="chip ${S.halfSet.includes(b.id) ? 'on' : ''}" data-action="toggle-half" data-id="${b.id}">${esc(b.id)}</button>`).join('')}</div>
-    <h2>My bag</h2>
-    <p class="muted small">Tick the clubs in the bag today (max 14). Yardages are <b>carry</b> and drive the club suggestions. Logged totals from your rounds appear alongside for reference.</p>
+    <h2>Full bag</h2>
+    <p class="muted small">Tick every club in your full bag (max 14). These are the clubs you get when you pick <b>Full bag</b>; the half set above is separate, so there's no need to untick clubs here for a half-set day. Yardages are <b>carry</b> and drive the club suggestions. Logged totals from your rounds appear alongside for reference.</p>
     ${bagTable()}
     <h2>Testing</h2>
     <label class="field row-field"><input type="checkbox" data-action="toggle-sim" ${gps.state.simulate ? 'checked' : ''}> Simulate GPS (double-tap the hole drawing to place yourself)</label>
@@ -1157,6 +1157,7 @@ const actions = {
     else if (f === 'flyer') s.start.flyer = !s.start.flyer;
     else if (f === 'miss') s.miss = s.miss === v ? null : v;
     else s[f] = v;
+    if (f === 'club' && clubById(v)?.type !== 'putter' && s.shotType !== 'putt') s.shotType = inferShotType(clubById(v), s.start.lie, s.start.distYds);
     if (f === 'club' && clubById(v)?.type === 'putter' && s.start.lie === 'green') s.shotType = 'putt';
     if (f === 'club' && clubById(v)?.type !== 'putter' && (s.start.bucketFt != null || s.shotType === 'putt')) {
       // it was logged as a putt but it's a chip: drop the putt distance; the GPS spot gives the yards
@@ -1309,7 +1310,11 @@ async function saveNote(apply = true) {
   s.noteUnapplied = !apply;
   if (apply) {
     const p = parseNote(s.note, S.bag);
-    if (p.club) s.club = p.club;
+    if (p.club && p.club !== s.club) {
+      s.club = p.club;
+      // a new club gets a fresh shot type (e.g. a wedge "chip" corrected to an 8-iron off the tee)
+      if (s.shotType !== 'putt' && clubById(s.club)?.type !== 'putter') s.shotType = inferShotType(clubById(s.club), s.start.lie, s.start.distYds);
+    }
     if (p.miss) s.miss = p.miss;
     if (p.shotType && s.shotType !== 'putt' && clubById(s.club)?.type !== 'putter') s.shotType = p.shotType; // a putt stays a putt
   }
