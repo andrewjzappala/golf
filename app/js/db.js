@@ -82,6 +82,9 @@ export async function exportAll() {
 
 // Merge an export back in (records with the same id are replaced).
 export async function importAll(data) {
+  // An imported round replaces the stored copy outright, so shots removed in a corrected file
+  // (e.g. a duplicate tap-in) don't linger next to the new ones.
+  for (const r of data.rounds || []) await deleteRound(r.id);
   const db = await open();
   const tx = db.transaction(STORES, 'readwrite');
   for (const s of STORES) for (const row of data[s] || []) tx.objectStore(s).put(row);
