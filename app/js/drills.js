@@ -39,19 +39,34 @@ export const DRILLS = [
   { id: 'anti-hook', cat: 'tee', tags: ['left-miss'], name: 'Anti-hook gate', time: '15 min',
     how: 'Alignment stick in the ground a club-length in front of the ball, just left of your target line. Start every ball right of the stick and hold the face through impact.',
     measure: 'Balls that start right of the stick and finish on target, out of 15.' },
+  { id: 'toe-gate', cat: 'tee', tags: ['contact'], name: 'Toe gate', time: '15 min',
+    how: 'With the 3H, set a headcover (or a second ball) just outside the toe, about an inch from the club. Hit 15 without touching it. Spray the face with foot powder or dry shampoo to see each strike.',
+    measure: 'Center strikes out of 15 with the headcover untouched.' },
+  { id: 'tee-rehearsal', cat: 'tee', tags: ['left-miss', 'contact'], name: 'Play the nine on the range', time: '20 min',
+    how: 'Play the par-4 tee shots of your course, three times through: No. 3 driver or 3H, No. 5 3H to 230–245 hugging the right, No. 6 three-quarter 3H at the green, No. 7 5-iron with a cut, No. 9 3H right side. Full routine every ball, pick a new target each time.',
+    measure: 'Fairways (or greens on 6 and 7) out of 15.' },
+  { id: 'tee-clip', cat: 'tee', tags: ['contact'], name: 'Tee clip', time: '10 min',
+    how: 'Tee the hybrid a quarter-inch up. Make smooth swings that clip the tee out without the ball shooting low or high. A topped or skied shot means the bottom of the swing moved.',
+    measure: 'Clean clips out of 15 (tee goes forward, ball flies at normal height).' },
   { id: 'tempo-80', cat: 'tee', name: '80% tempo', time: '10 min',
     how: 'Hit ten drivers at what feels like 80% speed, focusing on center contact rather than distance. Then ten at full speed with the same rhythm.',
     measure: 'Center strikes (impact spray or sound) out of 20.' },
 ];
 
-// The drills to show: biggest leak first, a pattern-specific drill if one applies, then the next leak.
-export function pickDrills(analysis, max = 4) {
+// The drills to show: the biggest leak first (with drills for any pattern it spotted, e.g. a left
+// miss or poor contact, at the top of that block), then one for the next leak.
+export function pickDrills(analysis, max = 5) {
   if (!analysis.rounds.length) return DRILLS.filter((d) => ['up-down-9', 'clock-4', 'wedge-ladder', 'fairway-finder'].includes(d.id));
   const order = Object.entries(analysis.cats).sort((a, b) => a[1] - b[1]).map(([k]) => k);
-  const tags = analysis.patterns.some((p) => p.text.startsWith('Left is the miss') || p.text.includes('misses lean left')) ? ['left-miss'] : [];
-  const picked = DRILLS.filter((d) => d.tags?.some((t) => tags.includes(t))); // pattern-specific first
+  const tags = [
+    ...(analysis.patterns.some((p) => p.text.startsWith('Left is the miss') || p.text.includes('misses lean left')) ? ['left-miss'] : []),
+    ...analysis.patterns.filter((p) => p.tag).map((p) => p.tag),
+  ];
+  const matches = (d) => d.tags?.some((t) => tags.includes(t));
+  // pattern drills for the biggest leak lead, then any other pattern drill
+  const picked = [...DRILLS.filter((d) => d.cat === order[0] && matches(d)), ...DRILLS.filter((d) => d.cat !== order[0] && matches(d))].slice(0, max - 1);
   const take = (cat, n) => DRILLS.filter((d) => d.cat === cat && !picked.includes(d)).slice(0, n).forEach((d) => picked.push(d));
-  take(order[0], 2); // biggest leak
+  take(order[0], Math.max(0, 2 - picked.length)); // biggest leak (at least two drills)
   take(order[1], 1); // next leak
   for (const cat of order) take(cat, max - picked.length);
   return picked.slice(0, max);

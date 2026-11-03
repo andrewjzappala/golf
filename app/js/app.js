@@ -332,7 +332,7 @@ function viewWorkshop() {
       : '<p class="muted serif" style="font-style:italic">Patterns appear after a few more rounds.</p>'}` : ''}
 
     <h2>Practice</h2>
-    <p class="muted small">${has ? `Picked for your biggest leak${a.patterns.some((p) => p.text.includes('left')) ? ' and your left miss' : ''}.` : 'A starter set. These adapt once you have rounds logged.'} Check one off when you've done it.</p>
+    <p class="muted small">${has ? `Picked for your biggest leak (${esc(a.leak.label.toLowerCase())})${[a.patterns.some((p) => p.text.includes('left')) && 'your left miss', a.patterns.some((p) => p.tag === 'contact') && 'your contact off the tee'].filter(Boolean).map((x, i, l) => (i === l.length - 1 ? ' and ' : ', ') + x).join('')}.` : 'A starter set. These adapt once you have rounds logged.'} Check one off when you've done it.</p>
     <div class="drills">${drills.map((d) => `<article class="drill">
       <div class="drill-head"><span class="eyebrow">${esc(catLabel[d.cat])} · ${esc(d.time)}</span>
         <button class="drill-done ${doneToday(d.id) ? 'on' : ''}" data-action="drill-done" data-id="${d.id}">${doneToday(d.id) ? 'Done today ✓' : 'Mark done'}</button></div>

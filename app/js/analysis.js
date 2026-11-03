@@ -119,7 +119,7 @@ export function analyzeRound(round, allShots, holeResultsByHole, course) {
       const gps = s.start.lie === 'green' ? null : autoMiss(s, next, hole, pinPt, isTee);
       // his own note/tap wins; GPS fills in when he didn't say
       perShot.push({ id: s.id, hole: h, club: s.club, cat, sg, miss: s.miss || gps?.dir || null, missSource: s.miss ? 'you' : gps ? 'gps' : null, gps,
-        start: s.start, end: s.end, isTeeShot: stored === first, par: hr.par });
+        start: s.start, end: s.end, isTeeShot: stored === first, par: hr.par, note: s.note || '' });
     }
     if (holeStart != null) unknown += holeStart - hr.strokes - known;
 
@@ -214,6 +214,10 @@ function findPatterns(shots, st, putting, nRounds) {
   } else if (dirMiss.length >= 3 && left.length / dirMiss.length <= 0.35) {
     out.push({ kind: 'tee', text: `Right is the miss: ${dirMiss.length - left.length} of ${dirMiss.length} tee shots that missed went right.` });
   }
+  // Contact off the tee, from his own notes ("toe hook", "topped", "smothered", "thinned")
+  const CONTACT = /\b(toe|tow|top|topped|thin|thinned|smother\w*|drop ?kick\w*|whiff\w*|chunk\w*|fat|duff\w*|called top)\b/i;
+  const mishits = tee.filter((s) => CONTACT.test(s.note));
+  if (mishits.length >= 3) out.push({ kind: 'tee', tag: 'contact', text: `Contact off the tee: ${mishits.length} of your tee-shot notes describe a toe strike, top, thin or smother.` });
   const allLeft = shots.filter((s) => s.cat !== 'putt' && s.miss === 'left').length;
   const allRight = shots.filter((s) => s.cat !== 'putt' && s.miss === 'right').length;
   if (allLeft + allRight >= 5 && allLeft >= 2 * allRight) out.push({ kind: 'approach', text: `Across all full shots, misses lean left ${allLeft} to ${allRight}.` });
